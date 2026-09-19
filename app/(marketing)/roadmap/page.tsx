@@ -24,7 +24,7 @@ export default async function RoadmapPage() {
         {/* Hero */}
         <div className="flex flex-col items-center text-center">
           <div className="text-gradient_brand mb-4 font-semibold">Roadmap</div>
-          <h1 className="font-heading text-3xl md:text-4xl lg:text-5xl">
+          <h1 className="font-heading text-3xl md:text-4xl lg:text-[3rem]">
             Where we&apos;re headed
           </h1>
           <p className="mt-6 max-w-2xl text-balance text-lg text-muted-foreground">

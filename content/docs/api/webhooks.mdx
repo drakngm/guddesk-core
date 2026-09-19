@@ -3,71 +3,55 @@ title: Webhooks
 description: Receive real-time event notifications from GudDesk via webhooks.
 ---
 
-Webhooks let you receive HTTP POST notifications when events happen in your GudDesk workspace. Use them to sync data, trigger workflows, or integrate with external tools.
+Webhooks let you receive HTTP POST notifications when events happen in your GudDesk workspace. Use them to sync data, trigger workflows, or power AI agents.
 
 ## Setting Up Webhooks
 
-1. Go to **Dashboard > Settings > Webhooks**
-2. Click **Add Endpoint**
-3. Enter your webhook URL (must be HTTPS)
-4. Select the events you want to receive
-5. Click **Save**
+### Via Dashboard
 
-GudDesk will send a test event to verify your endpoint is reachable.
+1. Go to **Workspace Settings > Webhooks**
+2. Click **Add Endpoint**
+3. Enter your webhook URL
+4. Select the events you want to receive
+5. Copy the signing secret for signature verification
+
+### Via API (Agent Auto-Registration)
+
+AI agents can programmatically register webhooks using the API:
+
+```bash
+curl -X POST https://guddesk.com/api/agent/webhooks \
+  -H "Authorization: Bearer gd_abc123..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://your-agent.com/webhook",
+    "events": {
+      "onMessageCreated": true,
+      "onConversationCreated": true
+    }
+  }'
+```
+
+The response includes the signing `secret`. If a webhook with the same URL already exists, the existing endpoint is returned.
 
 ## Event Types
 
-| Event | Description |
-|---|---|
-| `conversation.created` | A new conversation was started |
-| `conversation.updated` | Conversation status, assignee, or tags changed |
-| `conversation.resolved` | A conversation was resolved |
-| `message.created` | A new message was sent (customer or agent) |
-| `customer.created` | A new customer was identified |
-| `customer.updated` | Customer profile was updated |
-| `agent.resolved` | An AI agent resolved a conversation |
-| `agent.escalated` | An AI agent escalated to a human |
-| `article.created` | A knowledge base article was published |
-| `article.updated` | An article was modified |
-
-## Payload Format
-
-All webhook payloads follow this structure:
-
-```json
-{
-  "id": "evt_abc123",
-  "type": "conversation.created",
-  "createdAt": "2025-06-15T10:30:00Z",
-  "data": {
-    "id": "conv_xyz789",
-    "status": "open",
-    "customer": {
-      "id": "cus_123",
-      "email": "jane@example.com",
-      "name": "Jane Doe"
-    },
-    "messages": [
-      {
-        "id": "msg_001",
-        "role": "customer",
-        "text": "Hi, I need help with my account",
-        "createdAt": "2025-06-15T10:30:00Z"
-      }
-    ]
-  }
-}
-```
+| Event | Field | Description |
+|---|---|---|
+| Message Created | `onMessageCreated` | A new message was sent (visitor, agent, or bot) |
+| Conversation Created | `onConversationCreated` | A new conversation was started |
+| Conversation Closed | `onConversationClosed` | A conversation was closed |
+| Conversation Assigned | `onConversationAssigned` | A conversation was assigned to an agent |
 
 ## Verifying Signatures
 
-Every webhook request includes a signature header for verification:
+Every webhook request includes an HMAC SHA-256 signature in the `X-GudDesk-Signature` header for verification:
 
 ```
 X-GudDesk-Signature: sha256=abc123...
 ```
 
-Verify the signature using your webhook secret (found in Settings):
+Verify the signature using your webhook secret:
 
 ```typescript
 import crypto from "crypto";
@@ -83,32 +67,19 @@ function verifyWebhook(payload: string, signature: string, secret: string) {
 
 Always verify signatures in production to ensure requests are genuinely from GudDesk.
 
-## Retry Policy
-
-If your endpoint returns a non-2xx status code, GudDesk retries with exponential backoff:
-
-| Attempt | Delay |
-|---|---|
-| 1st retry | 1 minute |
-| 2nd retry | 5 minutes |
-| 3rd retry | 30 minutes |
-| 4th retry | 2 hours |
-| 5th retry | 12 hours |
-
-After 5 failed attempts, the event is marked as failed and can be manually retried from the dashboard.
-
 ## Testing Webhooks
 
-Use the **Test** button in Settings to send a sample event to your endpoint. For local development, use a tunneling service like ngrok:
+For local development, use a tunneling service like ngrok:
 
 ```bash
-ngrok http 3000
+ngrok http 3001
 # Use the ngrok URL as your webhook endpoint
 ```
+
+When running GudDesk locally (`localhost:3000`) and your agent locally (`localhost:3001`), you can register webhooks with HTTP URLs — no HTTPS required for local development.
 
 ## Best Practices
 
 - **Respond quickly** — Return a 200 status within 5 seconds. Do heavy processing asynchronously.
-- **Handle duplicates** — Use the `id` field to deduplicate events.
-- **Verify signatures** — Always validate the `X-GudDesk-Signature` header.
-- **Use HTTPS** — Webhook URLs must use HTTPS in production.
+- **Verify signatures** — Always validate the `X-GudDesk-Signature` header in production.
+- **Graceful shutdown** — If your agent registered a webhook programmatically, unregister it on shutdown via `DELETE /api/agent/webhooks`.
