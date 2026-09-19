@@ -59,7 +59,7 @@ Self-host: keep the same `appId` and load `https://your-domain/widget.js` instea
 
 | Layer | Technology |
 |-------|-----------|
-| Framework | [Next.js 16](https://next.js.org) (App Router) |
+| Framework | [Next.js 16](https://nextjs.org) (App Router) |
 | Language | [TypeScript](https://typescriptlang.org) |
 | Database | [PostgreSQL](https://postgresql.org) via [Prisma 7](https://prisma.io) |
 | Auth | [Auth.js v5](https://authjs.dev) |
