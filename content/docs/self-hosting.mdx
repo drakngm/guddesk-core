@@ -3,14 +3,14 @@ title: Self-Hosting
 description: Deploy GudDesk on your own infrastructure with Docker or bare metal.
 ---
 
-GudDesk is fully open source (GPL-3.0) and designed to run on your own infrastructure. This guide covers deployment options for production environments.
+GudDesk is fully open source (AGPL-3.0) and designed to run on your own infrastructure. This guide covers deployment options for production environments.
 
 ## Docker Compose (Recommended)
 
 The easiest way to self-host GudDesk:
 
 ```bash
-git clone https://github.com/guddesk/guddesk.git
+git clone https://github.com/gudlab/guddesk-core.git
 cd guddesk
 
 cp .env.example .env
@@ -128,7 +128,7 @@ pnpm build
 pm2 restart guddesk
 ```
 
-Always review the [changelog](https://github.com/guddesk/guddesk/releases) before updating to check for breaking changes or required migration steps.
+Always review the [changelog](https://github.com/gudlab/guddesk-core/releases) before updating to check for breaking changes or required migration steps.
 
 ## System Requirements
 
