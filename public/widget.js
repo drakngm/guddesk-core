@@ -82,6 +82,7 @@
       padding: 4px;
     }
     .fc-header-close:hover { opacity: 1; }
+
     .fc-messages {
       flex: 1;
       overflow-y: auto;
