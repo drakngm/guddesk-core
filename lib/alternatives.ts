@@ -26,7 +26,7 @@ export const alternatives: Alternative[] = [
     name: "Intercom",
     tagline: "The open-source Intercom alternative",
     description:
-      "Intercom is a powerful customer messaging platform, but its per-seat pricing and premium AI add-ons make it prohibitively expensive for most teams. GudDesk gives you the same live chat, inbox, and AI agent features — open source and completely free.",
+      "Intercom is a powerful customer messaging platform, but its per-seat pricing and premium AI add-ons make it prohibitively expensive for most teams. GudDesk gives you the same live chat, inbox, and AI agent features — open source and free for small teams.",
     pricing: "Starts at $39/seat/month. AI features cost extra. Most teams pay $200-500+/month.",
     weaknesses: [
       "Per-seat pricing adds up fast as your team grows",
@@ -38,13 +38,13 @@ export const alternatives: Alternative[] = [
     features: [
       { name: "Live chat widget", competitor: true, guddesk: true },
       { name: "Shared inbox", competitor: true, guddesk: true },
-      { name: "AI agents", competitor: "Paid add-on ($0.99/resolution)", guddesk: "Included" },
+      { name: "AI agents", competitor: "Paid add-on ($0.99/resolution)", guddesk: "Included free" },
       { name: "Knowledge base", competitor: true, guddesk: true },
       { name: "Workflow automations", competitor: true, guddesk: true },
       { name: "Self-hosting", competitor: false, guddesk: true },
-      { name: "Open source", competitor: false, guddesk: "GPL-3.0" },
-      { name: "Free tier", competitor: "14-day trial", guddesk: "Free & open source" },
-      { name: "Per-seat pricing", competitor: "$39-139/seat/mo", guddesk: "Free, no limits" },
+      { name: "Open source", competitor: false, guddesk: "AGPL-3.0" },
+      { name: "Free tier", competitor: "14-day trial", guddesk: "Free forever (2 members)" },
+      { name: "Per-seat pricing", competitor: "$39-139/seat/mo", guddesk: "Flat pricing" },
       { name: "Plugin/API ecosystem", competitor: true, guddesk: true },
       { name: "Slack integration", competitor: true, guddesk: true },
       { name: "Email integration", competitor: true, guddesk: true },
@@ -53,12 +53,12 @@ export const alternatives: Alternative[] = [
       {
         title: "Stop paying per seat",
         description:
-          "Intercom charges $39-139 per agent per month. GudDesk is 100% free and open source with unlimited agents — no per-seat surprises, ever.",
+          "Intercom charges $39-139 per agent per month. GudDesk Cloud Free covers 2 members; Pro is $29/mo flat and Business is ~$99/mo flat — no per-seat surprises.",
       },
       {
         title: "AI agents included, not upsold",
         description:
-          "Intercom charges $0.99 per AI resolution with Fin. GudDesk includes AI agents (GudBot, TriageBot, OnboardBot) out of the box — just bring your own API key.",
+          "Intercom charges $0.99 per AI resolution with Fin. GudDesk includes AI agents (GudBot, TriageBot, OnboardBot) in every plan, including the free tier.",
       },
       {
         title: "Own your data",
@@ -68,7 +68,7 @@ export const alternatives: Alternative[] = [
       {
         title: "Open source transparency",
         description:
-          "Every line of GudDesk code is open source under GPL-3.0. Audit it, extend it, or contribute back to the community.",
+          "Every line of GudDesk code is open source under AGPL-3.0. Audit it, extend it, or contribute back to the community.",
       },
     ],
     faqs: [
@@ -85,7 +85,7 @@ export const alternatives: Alternative[] = [
       {
         question: "Is GudDesk really free?",
         answer:
-          "Yes. GudDesk is 100% free and open source. No credit card required, no time-limited trial, no feature gates. Self-host on your own infrastructure with unlimited agents.",
+          "Yes. GudDesk is Cloud Free for 2 members and 500 conversations/month. No credit card required, no time-limited trial, no feature gates on the free tier. The open-source version is also completely free to self-host.",
       },
       {
         question: "What about Intercom's Fin AI?",
@@ -111,12 +111,12 @@ export const alternatives: Alternative[] = [
     features: [
       { name: "Live chat widget", competitor: true, guddesk: true },
       { name: "Shared inbox / ticketing", competitor: true, guddesk: true },
-      { name: "AI agents", competitor: "Suite Professional+ ($115/agent/mo)", guddesk: "Included" },
+      { name: "AI agents", competitor: "Suite Professional+ ($115/agent/mo)", guddesk: "Included free" },
       { name: "Knowledge base", competitor: true, guddesk: true },
       { name: "Workflow automations", competitor: true, guddesk: true },
       { name: "Self-hosting", competitor: false, guddesk: true },
-      { name: "Open source", competitor: false, guddesk: "GPL-3.0" },
-      { name: "Free tier", competitor: "14-day trial", guddesk: "Free & open source" },
+      { name: "Open source", competitor: false, guddesk: "AGPL-3.0" },
+      { name: "Free tier", competitor: "14-day trial", guddesk: "Free forever (2 members)" },
       { name: "Setup time", competitor: "Days to weeks", guddesk: "5 minutes" },
       { name: "Plugin/API ecosystem", competitor: true, guddesk: true },
       { name: "Slack integration", competitor: true, guddesk: true },
@@ -136,7 +136,7 @@ export const alternatives: Alternative[] = [
       {
         title: "No enterprise tax",
         description:
-          "Zendesk charges $55-150 per agent per month. GudDesk is completely free and open source with unlimited agents — no per-agent fees.",
+          "Zendesk charges $55-150 per agent per month. GudDesk is free for small teams and uses flat pricing — not per-agent fees that punish you for growing.",
       },
       {
         title: "Modern, AI-first architecture",
@@ -172,7 +172,7 @@ export const alternatives: Alternative[] = [
     name: "Freshdesk",
     tagline: "The open-source Freshdesk alternative",
     description:
-      "Freshdesk offers solid support tooling, but AI features and advanced automations are locked behind expensive plans. GudDesk gives you live chat, AI agents, and a modern shared inbox — completely free and open source, with everything included.",
+      "Freshdesk offers solid support tooling, but AI features and advanced automations are locked behind expensive plans. GudDesk gives you live chat, AI agents, and a modern shared inbox — free for small teams, with everything included.",
     pricing: "Free tier available but limited. Paid plans start at $15/agent/month, AI features at $29+/agent/month.",
     weaknesses: [
       "Free tier is very limited (no automations, basic reporting)",
@@ -184,12 +184,12 @@ export const alternatives: Alternative[] = [
     features: [
       { name: "Live chat widget", competitor: "Separate product (Freshchat)", guddesk: "Included" },
       { name: "Shared inbox", competitor: true, guddesk: true },
-      { name: "AI agents", competitor: "Pro plan+ ($49/agent/mo)", guddesk: "Included" },
+      { name: "AI agents", competitor: "Pro plan+ ($49/agent/mo)", guddesk: "Included free" },
       { name: "Knowledge base", competitor: true, guddesk: true },
-      { name: "Workflow automations", competitor: "Growth plan+ ($15/agent/mo)", guddesk: "Included" },
+      { name: "Workflow automations", competitor: "Growth plan+ ($15/agent/mo)", guddesk: "Included free" },
       { name: "Self-hosting", competitor: false, guddesk: true },
-      { name: "Open source", competitor: false, guddesk: "GPL-3.0" },
-      { name: "Free tier", competitor: "Limited (10 agents, no automations)", guddesk: "Full features, unlimited" },
+      { name: "Open source", competitor: false, guddesk: "AGPL-3.0" },
+      { name: "Free tier", competitor: "Limited (10 agents, no automations)", guddesk: "Full features (2 members)" },
       { name: "Unified platform", competitor: "Multiple products", guddesk: "All-in-one" },
       { name: "Plugin/API ecosystem", competitor: true, guddesk: true },
       { name: "Slack integration", competitor: true, guddesk: true },
@@ -199,17 +199,17 @@ export const alternatives: Alternative[] = [
       {
         title: "One platform, not three",
         description:
-          "Freshworks splits support across Freshdesk, Freshchat, and Freshcaller. GudDesk unifies live chat, email, and bot conversations in a single open-source platform.",
+          "Freshworks splits support across Freshdesk, Freshchat, and Freshcaller. GudDesk unifies live chat, email, and bot conversations in a single platform with a single price.",
       },
       {
-        title: "Everything included, no upsells",
+        title: "Full features on the free tier",
         description:
-          "Freshdesk's free tier strips out automations, AI, and advanced reporting. GudDesk is fully open source with everything included — AI agents, automations, knowledge base — unlimited agents.",
+          "Freshdesk's free tier strips out automations, AI, and advanced reporting. GudDesk's free tier includes everything — AI agents, automations, knowledge base — for 2 members.",
       },
       {
         title: "AI that's actually accessible",
         description:
-          "Freshdesk locks AI behind the Pro plan at $49/agent/month. GudDesk includes AI agents out of the box. Bring your own Anthropic API key for AI-powered features.",
+          "Freshdesk locks AI behind the Pro plan at $49/agent/month. GudDesk includes AI agents in every plan, including free. Bring your own AI key for advanced features.",
       },
       {
         title: "Modern developer experience",
@@ -219,9 +219,9 @@ export const alternatives: Alternative[] = [
     ],
     faqs: [
       {
-        question: "How does GudDesk compare to Freshdesk's free tier?",
+        question: "Is GudDesk's free tier better than Freshdesk's?",
         answer:
-          "Absolutely. Freshdesk's free plan supports 10 agents but excludes automations, AI, and most advanced features. GudDesk is fully open source with unlimited agents and full access to all features including AI, automations, and the knowledge base.",
+          "For small teams, yes. Freshdesk's free plan supports 10 agents but excludes automations, AI, and most advanced features. GudDesk's free plan covers 2 members with live chat, inbox, KB, and agent plugins to all features including AI agents, automations, and the knowledge base.",
       },
       {
         question: "Do I need Freshchat too, or does GudDesk cover chat?",
@@ -236,7 +236,7 @@ export const alternatives: Alternative[] = [
       {
         question: "Can I self-host GudDesk instead of using Freshdesk's cloud?",
         answer:
-          "Absolutely. GudDesk is fully open source under GPL-3.0. Clone the repo, run Docker Compose, and you have a complete support platform on your own infrastructure. Freshdesk offers no self-hosting option.",
+          "Absolutely. GudDesk is fully open source under AGPL-3.0. Clone the repo, run Docker Compose, and you have a complete support platform on your own infrastructure. Freshdesk offers no self-hosting option.",
       },
     ],
   },

@@ -69,3 +69,72 @@ export async function sendAgentNotificationEmail(
     console.error("Failed to send agent notification email:", error);
   }
 }
+
+/**
+ * Send an SLA breach notification email to the assigned agent.
+ */
+export async function sendSlaBreachNotification(
+  conversationId: string,
+  breachType: "first_response" | "resolution",
+) {
+  const conversation = await prisma.conversation.findUnique({
+    where: { id: conversationId },
+    include: {
+      workspace: { select: { name: true, slug: true } },
+      visitor: { select: { name: true, email: true } },
+      assignee: {
+        include: {
+          user: { select: { email: true, name: true } },
+        },
+      },
+    },
+  });
+
+  if (!conversation?.assignee?.user.email) return;
+
+  const visitorLabel =
+    conversation.visitor.name ??
+    conversation.visitor.email ??
+    "A visitor";
+
+  const breachLabel =
+    breachType === "first_response"
+      ? "First Response SLA Breached"
+      : "Resolution SLA Breached";
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+  const inboxUrl = `${appUrl}/workspace/${conversation.workspace.slug}/inbox?c=${conversationId}`;
+
+  try {
+    await resend.emails.send({
+      from: `${conversation.workspace.name} <notifications@guddesk.com>`,
+      to: conversation.assignee.user.email,
+      subject: `[SLA Breach] ${breachLabel} — ${visitorLabel}`,
+      html: `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 480px; margin: 0 auto; padding: 0;">
+          <div style="background-color: #ef4444; border-radius: 8px 8px 0 0; padding: 20px 24px; text-align: center;">
+            <span style="color: white; font-size: 18px; font-weight: 700;">SLA Breach Alert</span>
+          </div>
+          <div style="border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 8px 8px; background: white; padding: 24px;">
+            <p style="color: #1f2937; font-size: 14px; margin: 0 0 4px;">
+              <strong>${breachLabel}</strong> for conversation with <strong>${visitorLabel}</strong>
+            </p>
+            <p style="color: #6b7280; font-size: 13px; margin: 8px 0 0;">
+              ${conversation.subject ? `Subject: ${conversation.subject}` : ""}
+            </p>
+            <div style="text-align: center; margin: 24px 0 8px;">
+              <a href="${inboxUrl}" style="display: inline-block; background-color: #ef4444; color: white; text-decoration: none; padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 500;">
+                View in Inbox
+              </a>
+            </div>
+          </div>
+          <p style="color: #9ca3af; font-size: 11px; text-align: center; margin-top: 16px;">
+            ${conversation.workspace.name} via GudDesk
+          </p>
+        </div>
+      `,
+    });
+  } catch (error) {
+    console.error("Failed to send SLA breach notification:", error);
+  }
+}
