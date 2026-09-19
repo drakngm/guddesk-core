@@ -1,8 +1,10 @@
 {
   "crons": [
-    {
-      "path": "/api/cron/analytics",
-      "schedule": "0 1 * * *"
-    }
+    { "path": "/api/cron/analytics", "schedule": "0 1 * * *" },
+    { "path": "/api/cron/sla-check", "schedule": "5 1 * * *" },
+    { "path": "/api/cron/surveys", "schedule": "10 1 * * *" },
+    { "path": "/api/cron/agent-performance", "schedule": "15 1 * * *" },
+    { "path": "/api/cron/webhook-retry", "schedule": "20 1 * * *" },
+    { "path": "/api/cron/webhook-cleanup", "schedule": "25 1 * * *" }
   ]
 }

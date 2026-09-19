@@ -27,6 +27,7 @@ export const getUserWorkspaces = cache(async (userId: string) => {
           name: true,
           slug: true,
           logo: true,
+          plan: true,
         },
       },
     },

@@ -3,7 +3,7 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { requireWorkspaceMember } from "@/lib/workspace";
-import { getPusherServer } from "@/lib/pusher-server";
+import { safeTrigger } from "@/lib/pusher-server";
 import { revalidatePath } from "next/cache";
 
 export async function tagConversation(
@@ -37,14 +37,12 @@ export async function tagConversation(
       data: { tags: cleanTags },
     });
 
-    const pusher = getPusherServer();
-    if (pusher) {
-      await pusher.trigger(
-        `private-workspace-${conversation.workspaceId}`,
-        "conversation:updated",
-        { conversationId, tags: cleanTags },
-      );
-    }
+    await safeTrigger(
+      `private-workspace-${conversation.workspaceId}`,
+      "conversation:updated",
+      { conversationId, tags: cleanTags },
+      "tagConversation",
+    );
 
     revalidatePath(`/workspace`);
     return { status: "success" as const };

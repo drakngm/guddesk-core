@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { usePusher } from "./use-pusher";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { usePusher, usePusherReconnect } from "./use-pusher";
 
 export interface ConversationListItem {
   id: string;
   status: "OPEN" | "SNOOZED" | "CLOSED";
+  channel: "WIDGET" | "EMAIL" | "API";
   lastMessageAt: string | null;
   lastMessagePreview: string | null;
   tags: string[];
@@ -29,6 +30,8 @@ interface UseConversationsOptions {
   assigneeId?: string;
 }
 
+const PAGE_SIZE = 25;
+
 export function useConversations({
   workspaceId,
   status = "OPEN",
@@ -36,16 +39,37 @@ export function useConversations({
 }: UseConversationsOptions) {
   const [conversations, setConversations] = useState<ConversationListItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasMore, setHasMore] = useState(false);
+  const [total, setTotal] = useState(0);
+  const nextCursorRef = useRef<string | null>(null);
 
-  const fetchConversations = useCallback(async () => {
+  const fetchConversations = useCallback(async (cursor?: string) => {
     try {
-      const params = new URLSearchParams({ workspaceId, status });
+      const params = new URLSearchParams({
+        workspaceId,
+        status,
+        limit: String(PAGE_SIZE),
+      });
       if (assigneeId) params.set("assigneeId", assigneeId);
+      if (cursor) params.set("cursor", cursor);
 
-      const res = await fetch(`/api/inbox/conversations?${params}`);
+      const res = await fetch(`/api/inbox/conversations?${params}`, {
+        cache: "no-store",
+      });
       if (res.ok) {
         const data = await res.json();
-        setConversations(data.conversations);
+
+        if (cursor) {
+          // Appending more results
+          setConversations((prev) => [...prev, ...data.conversations]);
+        } else {
+          // Fresh fetch (filter change or refresh)
+          setConversations(data.conversations);
+        }
+
+        setHasMore(data.hasMore ?? false);
+        setTotal(data.total ?? 0);
+        nextCursorRef.current = data.nextCursor ?? null;
       }
     } catch (error) {
       console.error("Failed to fetch conversations:", error);
@@ -54,26 +78,33 @@ export function useConversations({
     }
   }, [workspaceId, status, assigneeId]);
 
+  // Initial fetch + re-fetch on filter change
   useEffect(() => {
+    setIsLoading(true);
+    nextCursorRef.current = null;
     fetchConversations();
   }, [fetchConversations]);
 
-  // Real-time updates
-  usePusher(`private-workspace-${workspaceId}`, "conversation:created", () => {
-    fetchConversations();
-  });
+  // Load more (append next page)
+  const loadMore = useCallback(() => {
+    if (nextCursorRef.current) {
+      fetchConversations(nextCursorRef.current);
+    }
+  }, [fetchConversations]);
 
-  usePusher(`private-workspace-${workspaceId}`, "conversation:updated", () => {
+  // Real-time updates — refresh from the beginning
+  const refresh = useCallback(() => {
+    nextCursorRef.current = null;
     fetchConversations();
-  });
+  }, [fetchConversations]);
 
-  usePusher(`private-workspace-${workspaceId}`, "conversation:new-message", () => {
-    fetchConversations();
-  });
+  usePusher(`private-workspace-${workspaceId}`, "conversation:created", refresh);
+  usePusher(`private-workspace-${workspaceId}`, "conversation:updated", refresh);
+  usePusher(`private-workspace-${workspaceId}`, "conversation:new-message", refresh);
+  usePusher(`private-workspace-${workspaceId}`, "conversations:bulk-updated", refresh);
 
-  usePusher(`private-workspace-${workspaceId}`, "conversations:bulk-updated", () => {
-    fetchConversations();
-  });
+  // Resync after reconnect — events that fired while disconnected are lost.
+  usePusherReconnect(refresh);
 
-  return { conversations, isLoading, refetch: fetchConversations };
+  return { conversations, isLoading, hasMore, total, loadMore, refetch: refresh };
 }

@@ -109,7 +109,7 @@ export default async function AlternativePage({ params }: PageProps) {
             <p className="mt-2 text-muted-foreground">{alt.pricing}</p>
             <div className="mt-4 flex items-center justify-center gap-2 text-sm font-medium text-emerald-600 dark:text-emerald-400">
               <Icons.check className="size-4" />
-              GudDesk: Free for up to 3 agents. No credit card required.
+              GudDesk: Free for 2 members. No credit card required.
             </div>
           </div>
         </MaxWidthWrapper>
@@ -195,7 +195,7 @@ export default async function AlternativePage({ params }: PageProps) {
               {
                 icon: Icons.code,
                 title: "Open Source",
-                desc: "GPL-3.0 licensed. Audit, extend, and contribute.",
+                desc: "AGPL-3.0 licensed. Audit, extend, and contribute.",
               },
               {
                 icon: Icons.laptop,
@@ -210,7 +210,7 @@ export default async function AlternativePage({ params }: PageProps) {
               {
                 icon: Icons.users,
                 title: "No Per-Seat Pricing",
-                desc: "Free for 3 agents. Flat pricing for workspaces.",
+                desc: "Free for 2 members. Flat pricing for workspaces.",
               },
             ].map((item) => (
               <div key={item.title} className="text-center">

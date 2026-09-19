@@ -1,3 +1,5 @@
+import { UserRole } from "@prisma/client";
+
 import { SidebarNavItem } from "types";
 
 export const sidebarLinks: SidebarNavItem[] = [
@@ -9,9 +11,46 @@ export const sidebarLinks: SidebarNavItem[] = [
     ],
   },
   {
+    title: "ADMIN",
+    items: [
+      {
+        href: "/admin",
+        icon: "laptop",
+        title: "Overview",
+        authorizeOnly: UserRole.ADMIN,
+      },
+      {
+        href: "/admin/users",
+        icon: "users",
+        title: "Users",
+        authorizeOnly: UserRole.ADMIN,
+      },
+      {
+        href: "/admin/workspaces",
+        icon: "building",
+        title: "Workspaces",
+        authorizeOnly: UserRole.ADMIN,
+      },
+      {
+        href: "/admin/integrations",
+        icon: "integrations",
+        title: "Integrations",
+        authorizeOnly: UserRole.ADMIN,
+      },
+      {
+        href: "/admin/analytics",
+        icon: "analytics",
+        title: "Analytics",
+        authorizeOnly: UserRole.ADMIN,
+      },
+    ],
+  },
+  {
     title: "OPTIONS",
     items: [
+      { href: "/dashboard/billing", icon: "billing", title: "Billing" },
       { href: "/dashboard/settings", icon: "settings", title: "Settings" },
+      { href: "/dashboard/settings/api-keys", icon: "key", title: "API Keys" },
       { href: "/", icon: "home", title: "Homepage" },
       { href: "/docs", icon: "bookOpen", title: "Documentation" },
     ],
@@ -28,6 +67,16 @@ export const workspaceSidebarLinks: SidebarNavItem[] = [
         href: "/workspace/[slug]/inbox",
         icon: "inbox",
         title: "Inbox",
+      },
+      {
+        href: "/workspace/[slug]/customers",
+        icon: "contact",
+        title: "Customers",
+      },
+      {
+        href: "/workspace/[slug]/companies",
+        icon: "building",
+        title: "Companies",
       },
     ],
   },
@@ -48,6 +97,21 @@ export const workspaceSidebarLinks: SidebarNavItem[] = [
         href: "/workspace/[slug]/analytics",
         icon: "analytics",
         title: "Analytics",
+      },
+      {
+        href: "/workspace/[slug]/performance",
+        icon: "activity",
+        title: "Performance",
+      },
+      {
+        href: "/workspace/[slug]/workload",
+        icon: "eye",
+        title: "Workload",
+      },
+      {
+        href: "/workspace/[slug]/feedback",
+        icon: "star",
+        title: "Feedback",
       },
       {
         href: "/workspace/[slug]/automations",
@@ -94,6 +158,42 @@ export const workspaceSidebarLinks: SidebarNavItem[] = [
         href: "/workspace/[slug]/settings/integrations",
         icon: "integrations",
         title: "Integrations",
+        authorizeOnly: "ADMIN",
+      },
+      {
+        href: "/workspace/[slug]/settings/webhooks",
+        icon: "webhook",
+        title: "Webhooks",
+        authorizeOnly: "ADMIN",
+      },
+      {
+        href: "/workspace/[slug]/settings/custom-fields",
+        icon: "database",
+        title: "Custom Fields",
+        authorizeOnly: "ADMIN",
+      },
+      {
+        href: "/workspace/[slug]/settings/sla",
+        icon: "shieldCheck",
+        title: "SLA Policies",
+        authorizeOnly: "ADMIN",
+      },
+      {
+        href: "/workspace/[slug]/settings/ticket-forms",
+        icon: "clipboardList",
+        title: "Ticket Forms",
+        authorizeOnly: "ADMIN",
+      },
+      {
+        href: "/workspace/[slug]/settings/surveys",
+        icon: "star",
+        title: "Surveys",
+        authorizeOnly: "ADMIN",
+      },
+      {
+        href: "/workspace/[slug]/settings/email-channel",
+        icon: "mail",
+        title: "Email Channel",
         authorizeOnly: "ADMIN",
       },
     ],

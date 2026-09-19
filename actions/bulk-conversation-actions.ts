@@ -3,7 +3,7 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { requireWorkspaceMember } from "@/lib/workspace";
-import { getPusherServer } from "@/lib/pusher-server";
+import { safeTrigger } from "@/lib/pusher-server";
 import { revalidatePath } from "next/cache";
 
 export async function bulkUpdateConversations(
@@ -52,13 +52,12 @@ export async function bulkUpdateConversations(
       data,
     });
 
-    const pusher = getPusherServer();
-    if (pusher) {
-      await pusher.trigger(`private-workspace-${workspaceId}`, "conversations:bulk-updated", {
-        conversationIds: validIds,
-        action,
-      });
-    }
+    await safeTrigger(
+      `private-workspace-${workspaceId}`,
+      "conversations:bulk-updated",
+      { conversationIds: validIds, action },
+      "bulkUpdateConversations",
+    );
 
     revalidatePath(`/workspace`);
     return { status: "success" as const, count: validIds.length };

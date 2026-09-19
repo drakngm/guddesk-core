@@ -29,11 +29,31 @@ enum InvitationStatus {
   EXPIRED
 }
 
+enum SubscriptionPlan {
+  FREE
+  PRO
+}
 
 enum ConversationStatus {
   OPEN
   SNOOZED
   CLOSED
+}
+
+enum ConversationChannel {
+  WIDGET
+  EMAIL
+  API
+}
+
+enum SurveyType {
+  CSAT
+  NPS
+}
+
+enum SurveyTriggerType {
+  ON_CLOSE
+  AFTER_DELAY
 }
 
 enum MessageType {
@@ -42,6 +62,18 @@ enum MessageType {
   NOTE
   SYSTEM
   BOT
+}
+
+enum AgentAvailability {
+  ONLINE
+  AWAY
+  OFFLINE
+}
+
+enum ApiKeyPermission {
+  READ_ONLY
+  READ_WRITE
+  FULL_ACCESS
 }
 
 // ─── Auth Models ─────────────────────────────────────────
@@ -90,6 +122,8 @@ model User {
   createdAt     DateTime  @default(now()) @map(name: "created_at")
   updatedAt     DateTime  @default(now()) @map(name: "updated_at")
   role          UserRole  @default(USER)
+  isBanned      Boolean   @default(false)
+  bannedAt      DateTime?
 
   accounts             Account[]
   sessions             Session[]
@@ -97,6 +131,8 @@ model User {
   sentInvitations      WorkspaceInvitation[]
   messages             Message[]
   articles             Article[]
+  apiKeys              ApiKey[]
+  adminAuditLogs       AdminAuditLog[]
 
   @@map(name: "users")
 }
@@ -114,7 +150,7 @@ model PasswordResetToken {
   id      String   @id @default(cuid())
   email   String
   token   String   @unique
-  expires DateTime
+  expires    DateTime
 
   @@unique([email, token])
   @@map(name: "password_reset_tokens")
@@ -127,7 +163,10 @@ model Workspace {
   name                 String
   slug                 String           @unique
   logo                 String?
+  plan                 SubscriptionPlan @default(FREE)
   appId                String           @unique @default(cuid())
+  stripeCustomerId     String?          @unique
+  stripeSubscriptionId String?          @unique
   createdAt            DateTime         @default(now()) @map(name: "created_at")
   updatedAt            DateTime         @updatedAt @map(name: "updated_at")
 
@@ -142,19 +181,37 @@ model Workspace {
   cannedResponses    CannedResponse[]
   aiUsageLogs        AiUsageLog[]
   automationRules    AutomationRule[]
+  agents             Agent[]
+  webhookEndpoints   WebhookEndpoint[]
+  apiKeys            ApiKey[]
   slackIntegration   SlackIntegration?
   analyticsSnapshots AnalyticsSnapshot[]
+  companies          Company[]
+  customFields       CustomField[]
+  customerEvents     CustomerEvent[]
+  customerSegments   CustomerSegment[]
+  slaPolicies        SlaPolicy[]
+  businessHours      BusinessHours?
+  ticketForms        TicketForm[]
+  surveyConfigs               SurveyConfig[]
+  surveyResponses             SurveyResponse[]
+  emailChannelConfig          EmailChannelConfig?
+  agentPerformanceSnapshots   AgentPerformanceSnapshot[]
+  sideConversations           SideConversation[]
 
   @@map(name: "workspaces")
 }
 
 model WorkspaceMember {
-  id          String        @id @default(cuid())
-  workspaceId String
-  userId      String
-  role        WorkspaceRole @default(AGENT)
-  createdAt   DateTime      @default(now()) @map(name: "created_at")
-  updatedAt   DateTime      @updatedAt @map(name: "updated_at")
+  id               String            @id @default(cuid())
+  workspaceId      String
+  userId           String
+  role             WorkspaceRole     @default(AGENT)
+  availability     AgentAvailability @default(OFFLINE)
+  lastActiveAt     DateTime?
+  currentViewingId String?           // conversationId currently viewing (collision detection)
+  createdAt        DateTime          @default(now()) @map(name: "created_at")
+  updatedAt        DateTime          @updatedAt @map(name: "updated_at")
 
   workspace             Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   user                  User           @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -200,6 +257,7 @@ model WidgetSettings {
   offlineFormTimeout Int?     @map(name: "offline_form_timeout") // minutes — null means disabled
   pageVisibilityMode    String @default("exclude") // "exclude" or "include"
   pageVisibilityPatterns Json   @default("[]")      // JSON array of glob-pattern strings
+  identitySecret     String?                        // HMAC-SHA256 secret for identity verification
   createdAt          DateTime @default(now()) @map(name: "created_at")
   updatedAt          DateTime @updatedAt @map(name: "updated_at")
 
@@ -213,6 +271,7 @@ model WidgetSettings {
 model Visitor {
   id         String   @id @default(cuid())
   workspaceId String
+  companyId  String?
   externalId String?
   name       String?
   email      String?
@@ -222,53 +281,75 @@ model Visitor {
   createdAt  DateTime @default(now()) @map(name: "created_at")
   updatedAt  DateTime @updatedAt @map(name: "updated_at")
 
-  workspace     Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  conversations Conversation[]
+  workspace      Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  company        Company?        @relation(fields: [companyId], references: [id], onDelete: SetNull)
+  conversations  Conversation[]
+  customerEvents CustomerEvent[]
 
   @@unique([workspaceId, externalId])
   @@index([workspaceId])
+  @@index([companyId])
   @@map(name: "visitors")
 }
 
 model Conversation {
-  id                 String             @id @default(cuid())
+  id                 String              @id @default(cuid())
   workspaceId        String
   visitorId          String
   assigneeId         String?
-  status             ConversationStatus @default(OPEN)
+  status             ConversationStatus  @default(OPEN)
+  channel            ConversationChannel @default(WIDGET)
   subject            String?
-  priority           Int                @default(0)
+  priority           Int                 @default(0)
   tags               String[]
   snoozedUntil       DateTime?
   lastMessageAt      DateTime?
   lastMessagePreview String?
   aiSummary          String?
   metadata           Json?
-  createdAt          DateTime           @default(now()) @map(name: "created_at")
-  updatedAt          DateTime           @updatedAt @map(name: "updated_at")
+  createdAt          DateTime            @default(now()) @map(name: "created_at")
+  updatedAt          DateTime            @updatedAt @map(name: "updated_at")
   closedAt           DateTime?
 
-  workspace Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  visitor   Visitor          @relation(fields: [visitorId], references: [id], onDelete: Cascade)
-  assignee  WorkspaceMember? @relation(fields: [assigneeId], references: [id], onDelete: SetNull)
-  messages  Message[]
+  // SLA tracking
+  slaPolicyId        String?
+  firstResponseDueAt DateTime?
+  resolutionDueAt    DateTime?
+  firstResponseAt    DateTime?
+  slaBreachedAt      DateTime?
+
+  // Ticket forms
+  ticketFormId       String?
+  customFieldValues  Json?
+
+  workspace         Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  visitor           Visitor             @relation(fields: [visitorId], references: [id], onDelete: Cascade)
+  assignee          WorkspaceMember?    @relation(fields: [assigneeId], references: [id], onDelete: SetNull)
+  slaPolicy         SlaPolicy?          @relation(fields: [slaPolicyId], references: [id], onDelete: SetNull)
+  ticketForm        TicketForm?         @relation(fields: [ticketFormId], references: [id], onDelete: SetNull)
+  messages          Message[]
+  sharedDraft       SharedDraft?
+  sideConversations SideConversation[]
 
   @@index([workspaceId, status])
   @@index([workspaceId, assigneeId])
   @@index([workspaceId, lastMessageAt])
+  @@index([workspaceId, channel])
   @@map(name: "conversations")
 }
 
 model Message {
-  id             String      @id @default(cuid())
-  conversationId String
-  type           MessageType
-  body           String
-  senderId       String?
-  senderName     String?
-  attachments    Json?
-  createdAt      DateTime    @default(now()) @map(name: "created_at")
-  updatedAt      DateTime    @updatedAt @map(name: "updated_at")
+  id              String      @id @default(cuid())
+  conversationId  String
+  type            MessageType
+  body            String
+  senderId        String?
+  senderName      String?
+  attachments     Json?
+  emailMessageId  String?     // RFC 2822 Message-ID for email threading
+  mentions        String[]    // userId[] of mentioned teammates
+  createdAt       DateTime    @default(now()) @map(name: "created_at")
+  updatedAt       DateTime    @updatedAt @map(name: "updated_at")
 
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   sender       User?        @relation(fields: [senderId], references: [id], onDelete: SetNull)
@@ -416,6 +497,128 @@ model AutomationRule {
   @@map(name: "automation_rules")
 }
 
+// ─── AI Agents ─────────────────────────────────────────
+
+enum AgentType {
+  BUILT_IN     // Platform-provided agents (GudBot, TriageBot, etc.)
+  MARKETPLACE  // Third-party agents from a future marketplace
+  CUSTOM       // Self-hosted agents installed by the workspace
+}
+
+model Agent {
+  id          String    @id @default(cuid())
+  workspaceId String
+  name        String
+  description String?
+  type        AgentType @default(CUSTOM)
+  iconUrl     String?               // Agent avatar/icon
+  creatorName String?               // "Acme Inc" or developer name
+  creatorUrl  String?               // Link to creator's site
+
+  // Connections — the agent's webhook + API key
+  webhookEndpointId String? @unique // The webhook this agent listens on
+  apiKeyId          String? @unique // The API key this agent uses to act
+
+  // Configuration
+  config      Json?                 // Agent-specific settings (escalation rules, model prefs, etc.)
+  isEnabled   Boolean   @default(true)
+  priority    Int       @default(0) // Lower = runs first (for event ordering)
+
+  installedAt DateTime  @default(now())
+  createdAt   DateTime  @default(now()) @map(name: "created_at")
+  updatedAt   DateTime  @updatedAt @map(name: "updated_at")
+
+  workspace       Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  webhookEndpoint WebhookEndpoint? @relation(fields: [webhookEndpointId], references: [id], onDelete: SetNull)
+  apiKey          ApiKey?          @relation(fields: [apiKeyId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId, isEnabled])
+  @@map(name: "agents")
+}
+
+// ─── Webhooks ───────────────────────────────────────────
+
+enum WebhookDeliveryStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+model WebhookEndpoint {
+  id          String  @id @default(cuid())
+  workspaceId String
+  url         String
+  secret      String
+  description String?
+  isEnabled   Boolean @default(true)
+
+  // Event subscriptions
+  onMessageCreated       Boolean @default(true)
+  onConversationCreated  Boolean @default(true)
+  onConversationClosed   Boolean @default(false)
+  onConversationAssigned Boolean @default(false)
+
+  createdAt DateTime @default(now()) @map(name: "created_at")
+  updatedAt DateTime @updatedAt @map(name: "updated_at")
+
+  workspace  Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  agent      Agent?
+  deliveries WebhookDelivery[]
+
+  @@index([workspaceId])
+  @@map(name: "webhook_endpoints")
+}
+
+model WebhookDelivery {
+  id           String                @id @default(cuid())
+  endpointId   String
+  event        String                // "message.created", "ping", etc.
+  payload      String                @db.Text
+  status       WebhookDeliveryStatus @default(PENDING)
+  attemptCount Int                   @default(0)
+  maxAttempts  Int                   @default(6)
+  nextRetryAt  DateTime?
+  httpStatus   Int?
+  responseBody String?               @db.Text
+  errorMessage String?
+  durationMs   Int?
+  createdAt    DateTime              @default(now()) @map(name: "created_at")
+  updatedAt    DateTime              @updatedAt @map(name: "updated_at")
+  completedAt  DateTime?
+
+  endpoint WebhookEndpoint @relation(fields: [endpointId], references: [id], onDelete: Cascade)
+
+  @@index([endpointId, createdAt])
+  @@index([status, nextRetryAt])
+  @@index([endpointId, status])
+  @@map(name: "webhook_deliveries")
+}
+
+// ─── API Keys ───────────────────────────────────────────
+
+model ApiKey {
+  id          String           @id @default(cuid())
+  userId      String
+  workspaceId String?
+  name        String
+  keyHash     String           @unique
+  keyPrefix   String
+  permission  ApiKeyPermission @default(READ_WRITE)
+  isEnabled   Boolean          @default(true)
+  lastUsedAt  DateTime?
+  expiresAt   DateTime?
+  createdAt   DateTime         @default(now()) @map(name: "created_at")
+  updatedAt   DateTime         @updatedAt @map(name: "updated_at")
+
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  agent     Agent?
+
+  @@index([userId])
+  @@index([workspaceId])
+  @@map(name: "api_keys")
+}
+
 // ─── Slack Integration ──────────────────────────────────
 
 model SlackIntegration {
@@ -459,3 +662,298 @@ model AnalyticsSnapshot {
   @@map(name: "analytics_snapshots")
 }
 
+// ─── Admin Audit Log ──────────────────────────────────
+
+model AdminAuditLog {
+  id         String   @id @default(cuid())
+  adminId    String
+  action     String   // "ban_user", "unban_user", "change_plan", "delete_workspace", "change_role"
+  targetType String   // "USER" or "WORKSPACE"
+  targetId   String
+  metadata   Json?    // extra context (reason, old/new values)
+  createdAt  DateTime @default(now()) @map(name: "created_at")
+
+  admin User @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId, createdAt])
+  @@index([targetType, targetId])
+  @@map(name: "admin_audit_logs")
+}
+
+// ─── Company Profiles ──────────────────────────────────
+
+model Company {
+  id          String   @id @default(cuid())
+  workspaceId String
+  name        String
+  domain      String?
+  website     String?
+  logoUrl     String?
+  industry    String?
+  metadata    Json?
+  createdAt   DateTime @default(now()) @map(name: "created_at")
+  updatedAt   DateTime @updatedAt @map(name: "updated_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  visitors  Visitor[]
+
+  @@unique([workspaceId, domain])
+  @@index([workspaceId])
+  @@map(name: "companies")
+}
+
+// ─── Custom Fields ─────────────────────────────────────
+
+enum CustomFieldType {
+  TEXT
+  NUMBER
+  BOOLEAN
+  DATE
+  ENUM
+}
+
+model CustomField {
+  id           String          @id @default(cuid())
+  workspaceId  String
+  name         String
+  key          String
+  fieldType    CustomFieldType
+  entityType   String          // "customer" or "company"
+  isRequired   Boolean         @default(false)
+  enumOptions  String[]
+  displayOrder Int             @default(0)
+  createdAt    DateTime        @default(now()) @map(name: "created_at")
+  updatedAt    DateTime        @updatedAt @map(name: "updated_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, key, entityType])
+  @@index([workspaceId, entityType])
+  @@map(name: "custom_fields")
+}
+
+// ─── Customer Events (Timeline) ────────────────────────
+
+model CustomerEvent {
+  id          String   @id @default(cuid())
+  workspaceId String
+  visitorId   String
+  type        String   // "conversation.created", "message.sent", "customer.identified", etc.
+  title       String
+  metadata    Json?
+  createdAt   DateTime @default(now()) @map(name: "created_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  visitor   Visitor   @relation(fields: [visitorId], references: [id], onDelete: Cascade)
+
+  @@index([visitorId, createdAt])
+  @@index([workspaceId, createdAt])
+  @@map(name: "customer_events")
+}
+
+// ─── Customer Segments ─────────────────────────────────
+
+model CustomerSegment {
+  id          String   @id @default(cuid())
+  workspaceId String
+  name        String
+  description String?
+  conditions  Json     // [{ field, operator, value }]
+  color       String?
+  createdAt   DateTime @default(now()) @map(name: "created_at")
+  updatedAt   DateTime @updatedAt @map(name: "updated_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@map(name: "customer_segments")
+}
+
+// ─── SLA Policies ─────────────────────────────────────
+
+model SlaPolicy {
+  id                    String   @id @default(cuid())
+  workspaceId           String
+  name                  String
+  firstResponseMinutes  Int
+  resolutionMinutes     Int
+  priority              Int?     // null = default for all; 0-3 = specific priority
+  isDefault             Boolean  @default(false)
+  createdAt             DateTime @default(now()) @map(name: "created_at")
+  updatedAt             DateTime @updatedAt @map(name: "updated_at")
+
+  workspace     Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  conversations Conversation[]
+
+  @@unique([workspaceId, priority])
+  @@index([workspaceId])
+  @@map(name: "sla_policies")
+}
+
+// ─── Business Hours ───────────────────────────────────
+
+model BusinessHours {
+  id          String   @id @default(cuid())
+  workspaceId String   @unique
+  timezone    String   @default("UTC")
+  schedule    Json     // { "monday": { "start": "09:00", "end": "17:00" }, ... }
+  holidays    Json     @default("[]") // ["2026-01-01", ...]
+  createdAt   DateTime @default(now()) @map(name: "created_at")
+  updatedAt   DateTime @updatedAt @map(name: "updated_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@map(name: "business_hours")
+}
+
+// ─── Ticket Forms ─────────────────────────────────────
+
+model TicketForm {
+  id          String   @id @default(cuid())
+  workspaceId String
+  name        String
+  description String?
+  fieldKeys   String[] // ordered CustomField.key values
+  isDefault   Boolean  @default(false)
+  isEnabled   Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map(name: "created_at")
+  updatedAt   DateTime @updatedAt @map(name: "updated_at")
+
+  workspace     Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  conversations Conversation[]
+
+  @@index([workspaceId])
+  @@map(name: "ticket_forms")
+}
+
+// ─── CSAT & Feedback ──────────────────────────────────
+
+model SurveyConfig {
+  id            String            @id @default(cuid())
+  workspaceId   String
+  type          SurveyType
+  isEnabled     Boolean           @default(false)
+  trigger       SurveyTriggerType @default(ON_CLOSE)
+  delayMinutes  Int               @default(0)
+  questionText  String            @default("How would you rate your experience?")
+  thankYouText  String            @default("Thank you for your feedback!")
+  createdAt     DateTime          @default(now()) @map(name: "created_at")
+  updatedAt     DateTime          @updatedAt @map(name: "updated_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, type])
+  @@map(name: "survey_configs")
+}
+
+model SurveyResponse {
+  id              String     @id @default(cuid())
+  workspaceId     String
+  conversationId  String?
+  visitorId       String
+  type            SurveyType
+  rating          Int        // CSAT: 1-5, NPS: 0-10
+  comment         String?
+  assigneeId      String?    // agent who handled conversation, for per-agent breakdown
+  respondedAt     DateTime   @default(now())
+  createdAt       DateTime   @default(now()) @map(name: "created_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, type, respondedAt])
+  @@index([workspaceId, assigneeId, respondedAt])
+  @@index([conversationId])
+  @@map(name: "survey_responses")
+}
+
+// ─── Email Channel ────────────────────────────────────
+
+model EmailChannelConfig {
+  id              String   @id @default(cuid())
+  workspaceId     String   @unique
+  isEnabled       Boolean  @default(false)
+  supportAddress  String?  // e.g. "support@acme.guddesk.com"
+  forwardAddress  String?  // custom domain forwarding target
+  fromName        String?  // "Acme Support"
+  fromAddress     String?  // verified sender address
+  signature       String?  // HTML signature for outbound replies
+  autoReopen      Boolean  @default(true)
+  createdAt       DateTime @default(now()) @map(name: "created_at")
+  updatedAt       DateTime @updatedAt @map(name: "updated_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@map(name: "email_channel_configs")
+}
+
+// ─── Shared Drafts ──────────────────────────────────
+
+model SharedDraft {
+  id              String   @id @default(cuid())
+  conversationId  String   @unique
+  body            String   @default("")
+  lastEditedBy    String?  // userId
+  updatedAt       DateTime @updatedAt @map(name: "updated_at")
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@map(name: "shared_drafts")
+}
+
+// ─── Side Conversations ─────────────────────────────
+
+model SideConversation {
+  id              String   @id @default(cuid())
+  workspaceId     String
+  conversationId  String
+  subject         String
+  createdById     String
+  status          String   @default("OPEN") // OPEN | CLOSED
+  participantIds  String[]
+  createdAt       DateTime @default(now()) @map(name: "created_at")
+  updatedAt       DateTime @updatedAt @map(name: "updated_at")
+
+  workspace    Workspace                @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  conversation Conversation             @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  messages     SideConversationMessage[]
+
+  @@index([conversationId])
+  @@index([workspaceId])
+  @@map(name: "side_conversations")
+}
+
+model SideConversationMessage {
+  id                  String   @id @default(cuid())
+  sideConversationId  String
+  senderId            String
+  senderName          String?
+  body                String
+  createdAt           DateTime @default(now()) @map(name: "created_at")
+
+  sideConversation SideConversation @relation(fields: [sideConversationId], references: [id], onDelete: Cascade)
+
+  @@index([sideConversationId, createdAt])
+  @@map(name: "side_conversation_messages")
+}
+
+// ─── Agent Performance Snapshots ────────────────────
+
+model AgentPerformanceSnapshot {
+  id                    String   @id @default(cuid())
+  workspaceId           String
+  memberId              String   // WorkspaceMember.id
+  date                  DateTime @db.Date
+  conversationsHandled  Int      @default(0)
+  messagesCount         Int      @default(0)
+  avgFirstResponseMs    Int?
+  avgResolutionMs       Int?
+  csatAverage           Float?
+  csatCount             Int      @default(0)
+  createdAt             DateTime @default(now()) @map(name: "created_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([memberId, date])
+  @@index([workspaceId, date])
+  @@map(name: "agent_performance_snapshots")
+}

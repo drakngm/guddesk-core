@@ -45,7 +45,7 @@ export async function summarizeConversation(conversationId: string) {
     });
 
     if (!summary) {
-      return { status: "error" as const, message: "AI features require an ANTHROPIC_API_KEY" };
+      return { status: "error" as const, message: "AI features require a Pro plan" };
     }
 
     // Save to conversation

@@ -20,6 +20,7 @@ declare global {
         name?: string;
         email?: string;
         metadata?: Record<string, unknown>;
+        userHash?: string;
       }) => Promise<void>;
       open: () => void;
       close: () => void;
@@ -38,6 +39,10 @@ function getBaseUrl(): string {
     if (src.includes("guddesk") || src.includes("widget")) {
       try {
         const url = new URL(src);
+        // cdn.guddesk.com is the public install path; API lives on guddesk.com.
+        if (url.hostname === "cdn.guddesk.com" || url.hostname === "www.guddesk.com") {
+          return "https://guddesk.com";
+        }
         return url.origin;
       } catch {
         // continue
@@ -93,6 +98,7 @@ const GudDesk = {
     name?: string;
     email?: string;
     metadata?: Record<string, unknown>;
+    userHash?: string;
   }) => identifyVisitor(info),
   open: () => {
     isOpen.value = true;
@@ -107,7 +113,7 @@ const GudDesk = {
 window.GudDesk = GudDesk;
 
 // Auto-init if settings are present
-if (window.GudDeskSettings) {
+ if (window.GudDeskSettings) {
   // Wait for DOM ready
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () =>

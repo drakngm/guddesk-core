@@ -3,7 +3,8 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { requireWorkspaceMember } from "@/lib/workspace";
-import { getPusherServer } from "@/lib/pusher-server";
+import { safeTriggerBatch } from "@/lib/pusher-server";
+import { dispatchWebhooks } from "@/lib/webhooks";
 import { revalidatePath } from "next/cache";
 
 export async function assignConversation(
@@ -48,28 +49,75 @@ export async function assignConversation(
       },
     });
 
-    // Create system message
-    const assigneeName = updated.assignee?.user.name ?? "Unassigned";
-    await prisma.message.create({
-      data: {
-        conversationId,
+    const assigneeName = updated.assignee?.user.name ?? "Unknown";
+    const actorName = session.user.name ?? "Someone";
+
+    const events: Array<{ channel: string; name: string; data: unknown }> = [];
+
+    if (assigneeId) {
+      // Assignment: visible to both agents and visitors in widget
+      const sysMsg = await prisma.message.create({
+        data: {
+          conversationId,
+          type: "SYSTEM",
+          body: `${assigneeName} has joined the chat`,
+          senderId: session.user.id,
+        },
+      });
+
+      const payload = {
+        id: sysMsg.id,
+        body: sysMsg.body,
         type: "SYSTEM",
-        body: assigneeId
-          ? `Assigned to ${assigneeName}`
-          : "Unassigned",
-        senderId: session.user.id,
-        senderName: session.user.name,
-      },
+        senderName: null,
+        createdAt: sysMsg.createdAt.toISOString(),
+      };
+      events.push(
+        { channel: `private-visitor-${conversationId}`, name: "message:created", data: payload },
+        { channel: `private-conversation-${conversationId}`, name: "message:created", data: payload },
+      );
+    } else {
+      // Unassignment: internal only (NOTE type is filtered out of widget API)
+      const noteMsg = await prisma.message.create({
+        data: {
+          conversationId,
+          type: "NOTE",
+          body: `${actorName} unassigned this conversation`,
+          senderId: session.user.id,
+        },
+      });
+
+      events.push({
+        channel: `private-conversation-${conversationId}`,
+        name: "message:created",
+        data: {
+          id: noteMsg.id,
+          body: noteMsg.body,
+          type: "NOTE",
+          senderName: actorName,
+          createdAt: noteMsg.createdAt.toISOString(),
+        },
+      });
+    }
+
+    // Broadcast conversation update (refreshes list and sidebar)
+    events.push({
+      channel: `private-workspace-${conversation.workspaceId}`,
+      name: "conversation:updated",
+      data: { conversationId, assigneeId },
     });
 
-    // Broadcast update
-    const pusher = getPusherServer();
-    if (pusher) {
-      await pusher.trigger(
-        `private-workspace-${conversation.workspaceId}`,
-        "conversation:updated",
-        { conversationId, assigneeId },
-      );
+    await safeTriggerBatch(events, "assignConversation");
+
+    // Dispatch conversation.assigned webhook
+    if (assigneeId) {
+      await dispatchWebhooks(conversation.workspaceId, "conversation.assigned", {
+        conversationId,
+        assigneeId,
+        assigneeName: updated.assignee?.user.name ?? null,
+        assignedBy: session.user.id,
+        assignedByName: session.user.name,
+      });
     }
 
     revalidatePath(`/workspace`);

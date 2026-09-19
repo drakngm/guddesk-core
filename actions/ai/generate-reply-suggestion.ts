@@ -48,7 +48,7 @@ export async function generateReplySuggestion(conversationId: string) {
     });
 
     if (!suggestion) {
-      return { status: "error" as const, message: "AI features require an ANTHROPIC_API_KEY" };
+      return { status: "error" as const, message: "AI features require a Pro plan" };
     }
 
     return { status: "success" as const, suggestion };

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { prisma } from "@/lib/db";
-import { getPusherServer } from "@/lib/pusher-server";
+import { safeTriggerBatch } from "@/lib/pusher-server";
+import { dispatchWebhooks } from "@/lib/webhooks";
 import { verifyVisitorToken } from "@/lib/visitor-auth";
 
 // GET /api/widget/conversations/[conversationId]/messages
@@ -109,7 +110,7 @@ export async function POST(
     // Verify conversation belongs to this visitor
     const conversation = await prisma.conversation.findUnique({
       where: { id: conversationId },
-      select: { visitorId: true, workspaceId: true },
+      select: { visitorId: true, workspaceId: true, assigneeId: true },
     });
 
     if (
@@ -144,35 +145,44 @@ export async function POST(
       },
     });
 
-    // Trigger real-time events
-    const pusher = getPusherServer();
-    if (pusher) {
-      const messagePayload = {
-        id: newMessage.id,
-        type: newMessage.type,
-        body: newMessage.body,
-        senderName: newMessage.senderName,
-        createdAt: newMessage.createdAt,
-      };
-
-      // Notify agents watching this conversation
-      await pusher.trigger(
-        `private-conversation-${conversationId}`,
-        "message:created",
-        messagePayload,
-      );
-
-      // Notify workspace inbox
-      await pusher.trigger(
-        `private-workspace-${conversation.workspaceId}`,
-        "conversation:new-message",
+    // Trigger real-time events — batched + safe so a Pusher failure
+    // doesn't 500 a successful DB write.
+    const messagePayload = {
+      id: newMessage.id,
+      type: newMessage.type,
+      body: newMessage.body,
+      senderName: newMessage.senderName,
+      createdAt: newMessage.createdAt,
+    };
+    await safeTriggerBatch(
+      [
         {
-          conversationId,
-          lastMessageAt: new Date(),
-          lastMessagePreview: preview,
+          channel: `private-conversation-${conversationId}`,
+          name: "message:created",
+          data: messagePayload,
         },
-      );
-    }
+        {
+          channel: `private-workspace-${conversation.workspaceId}`,
+          name: "conversation:new-message",
+          data: {
+            conversationId,
+            lastMessageAt: new Date(),
+            lastMessagePreview: preview,
+          },
+        },
+      ],
+      "POST /api/widget/conversations/[id]/messages",
+    );
+
+    // Dispatch webhooks (awaited — required for Vercel serverless)
+    await dispatchWebhooks(conversation.workspaceId, "message.created", {
+      conversationId,
+      messageId: newMessage.id,
+      type: "VISITOR",
+      body: message,
+      workspaceId: conversation.workspaceId,
+      assigneeId: conversation.assigneeId ?? null,
+    });
 
     return NextResponse.json({
       id: newMessage.id,

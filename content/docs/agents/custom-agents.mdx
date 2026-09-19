@@ -1,142 +1,217 @@
 ---
 title: Custom Agents
-description: Build your own AI agents using the GudDesk Agent API.
+description: Build external AI agents that integrate with GudDesk.
 ---
 
-The built-in agents cover common support patterns, but your business has unique workflows. The GudDesk Agent API lets you build custom agents that integrate with your tools and data.
+Agents are external services that receive webhook events from GudDesk and act on conversations via the REST API. Each agent brings its own logic, LLM, and billing — GudDesk provides the data and actions.
 
-## Agent API Overview
+## How Agents Work
 
-Custom agents are TypeScript/JavaScript modules that:
+1. **Install** — register your agent in a workspace (via the dashboard or API). GudDesk creates a webhook endpoint and a dedicated API key.
+2. **Receive events** — GudDesk sends webhook payloads to your agent's URL when conversations and messages happen.
+3. **Act** — your agent calls the GudDesk API to reply, tag, assign, or resolve conversations using the API key it received at install.
 
-1. **Listen** for specific conversation events (new message, tag added, etc.)
-2. **Process** the conversation context (messages, customer data, tags)
-3. **Act** by replying, tagging, assigning, resolving, or escalating
+This is the same pattern used by [gud-agent](https://github.com/gudlab/gud-agent), the open-source reference implementation.
 
-## Basic Structure
+## Architecture
 
-```typescript
-import { GudDeskAgent } from "@guddesk/agents";
-
-const myAgent = new GudDeskAgent({
-  name: "RefundBot",
-  description: "Handles refund requests automatically",
-  trigger: "intent:refund_request",
-
-  async handler(conversation) {
-    // Access conversation data
-    const customerEmail = conversation.customer.email;
-    const latestMessage = conversation.messages.at(-1);
-
-    // Integrate with your systems
-    const order = await yourAPI.lookupOrder(customerEmail);
-
-    if (order && order.isRefundable) {
-      await yourAPI.processRefund(order.id);
-      return conversation.resolve(
-        `Your refund for order #${order.id} has been processed. ` +
-        `You'll see it in 3-5 business days.`
-      );
-    }
-
-    // Escalate if we can't handle it
-    return conversation.escalate("refund-team", {
-      note: `Customer requested refund. Order #${order?.id || "not found"}.`,
-    });
-  },
-});
+```
+┌──────────────┐     webhook POST     ┌───────────────┐
+│   GudDesk   │ ──────────────────▶  │  Your Agent  │
+│  (Platform) │                      │  (External)  │
+│             │  ◀──────────────────  │              │
+└──────────────┘   REST API calls     └───────────────┘
+                  (with API key)
 ```
 
-## Triggers
+Your agent is a web service at a public HTTPS URL. It can be written in any language and use any LLM provider.
 
-Agents can be triggered by:
-
-| Trigger | Description |
-|---|---|
-| `message:new` | Any new customer message |
-| `intent:<name>` | Detected intent (e.g., `intent:refund_request`) |
-| `tag:<name>` | Conversation tagged with specific label |
-| `event:assigned` | Conversation was assigned |
-| `event:unresolved` | Previously resolved conversation was reopened |
-| `schedule:cron` | Scheduled recurring trigger |
-
-## Conversation Object
-
-The `conversation` object gives you access to:
-
-```typescript
-interface Conversation {
-  id: string;
-  status: "open" | "snoozed" | "resolved";
-  customer: {
-    id: string;
-    email: string;
-    name?: string;
-    metadata?: Record<string, unknown>;
-  };
-  messages: Message[];
-  tags: string[];
-  assignee?: TeamMember;
-  createdAt: Date;
-
-  // Actions
-  reply(text: string): Promise<void>;
-  resolve(text?: string): Promise<void>;
-  escalate(team: string, opts?: object): Promise<void>;
-  tag(label: string): Promise<void>;
-  assign(memberId: string): Promise<void>;
-  addNote(text: string): Promise<void>;
-}
-```
-
-## Deploying Custom Agents
+## Installing an Agent
 
 ### Via the Dashboard
 
-1. Go to **Settings > AI Agents > Custom**
-2. Click **New Agent**
-3. Paste your agent code
-4. Configure the trigger and priority
-5. Click **Deploy**
+1. Go to **Settings > AI Agents**
+2. Click **Install Agent**
+3. Enter a name, your agent's webhook URL, and select which events to subscribe to
+4. Click **Install Agent**
+5. Save the webhook signing secret and API key — they're shown only once
 
 ### Via the API
 
 ```bash
-curl -X POST https://your-guddesk.com/api/agents \
-  -H "Authorization: Bearer gd_live_xxxxxxxxxxxxxxxx" \
+curl -X POST https://guddesk.com/api/v1/agents \
+  -H "Authorization: Bearer gd_abc123..." \
   -H "Content-Type: application/json" \
   -d '{
     "name": "RefundBot",
-    "trigger": "intent:refund_request",
-    "code": "... (base64 encoded)"
+    "description": "Handles refund requests automatically",
+    "webhookUrl": "https://your-agent.com/webhook",
+    "events": {
+      "onMessageCreated": true,
+      "onConversationCreated": true
+    }
   }'
 ```
 
-## Testing
+The response includes one-time credentials:
 
-Test your agents before deploying to production:
+```json
+{
+  "data": {
+    "id": "clx...",
+    "name": "RefundBot",
+    "credentials": {
+      "webhookSecret": "a1b2c3...",
+      "apiKey": "gd_xyz789..."
+    }
+  }
+}
+```
+
+## Receiving Webhooks
+
+When subscribed events occur, GudDesk sends a POST request to your webhook URL:
+
+```json
+{
+  "event": "message.created",
+  "data": {
+    "conversationId": "conv_123",
+    "messageId": "msg_456",
+    "type": "VISITOR",
+    "body": "I want a refund for order #1234",
+    "workspaceId": "ws_789"
+  },
+  "timestamp": "2025-01-15T10:30:00.000Z"
+}
+```
+
+### Headers
+
+| Header | Description |
+|---|---|
+| `X-GudDesk-Signature` | HMAC SHA-256 signature: `sha256=<hex>` |
+| `X-GudDesk-Event` | Event name (e.g., `message.created`) |
+| `X-GudDesk-Agent-Id` | Your agent's ID in GudDesk |
+
+### Verifying Signatures
+
+Verify the `X-GudDesk-Signature` header using your webhook secret:
 
 ```typescript
-import { testAgent } from "@guddesk/agents/testing";
+import { createHmac } from "crypto";
 
-const result = await testAgent(myAgent, {
-  messages: [{ role: "customer", text: "I want a refund for order #1234" }],
-  customer: { email: "test@example.com" },
+function verifySignature(payload: string, secret: string, signature: string): boolean {
+  const expected = createHmac("sha256", secret).update(payload).digest("hex");
+  return signature === `sha256=${expected}`;
+}
+```
+
+### Available Events
+
+| Event | Description |
+|---|---|
+| `message.created` | A visitor or agent sent a message |
+| `conversation.created` | A new conversation started |
+| `conversation.closed` | A conversation was resolved |
+| `conversation.assigned` | A conversation was assigned to a team member |
+
+## Acting via the API
+
+Use the API key from installation to call the GudDesk API. The key is scoped to the workspace and has READ_WRITE permission.
+
+### Reply to a conversation
+
+```bash
+curl -X POST https://guddesk.com/api/agent/reply \
+  -H "Authorization: Bearer gd_xyz789..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "conversationId": "conv_123",
+    "body": "Your refund for order #1234 has been processed!",
+    "senderName": "RefundBot"
+  }'
+```
+
+### Update a conversation
+
+```bash
+curl -X PATCH https://guddesk.com/api/v1/conversations/conv_123 \
+  -H "Authorization: Bearer gd_xyz789..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "status": "CLOSED",
+    "tags": ["refund", "resolved"]
+  }'
+```
+
+### Read conversation messages
+
+```bash
+curl "https://guddesk.com/api/v1/conversations/conv_123/messages" \
+  -H "Authorization: Bearer gd_xyz789..."
+```
+
+## Example: Simple Echo Agent
+
+A minimal agent in Node.js that echoes back visitor messages:
+
+```typescript
+import express from "express";
+import { createHmac } from "crypto";
+
+const app = express();
+app.use(express.json());
+
+const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET!;
+const API_KEY = process.env.GUDDESK_API_KEY!;
+const GUDDESK_URL = process.env.GUDDESK_URL || "https://guddesk.com";
+
+app.post("/webhook", async (req, res) => {
+  // Verify signature
+  const signature = req.headers["x-guddesk-signature"] as string;
+  const expected = `sha256=${createHmac("sha256", WEBHOOK_SECRET)
+    .update(JSON.stringify(req.body))
+    .digest("hex")}`;
+
+  if (signature !== expected) {
+    return res.status(401).send("Invalid signature");
+  }
+
+  const { event, data } = req.body;
+
+  // Only respond to visitor messages
+  if (event === "message.created" && data.type === "VISITOR") {
+    await fetch(`${GUDDESK_URL}/api/agent/reply`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        conversationId: data.conversationId,
+        body: `Echo: ${data.body}`,
+        senderName: "EchoBot",
+      }),
+    });
+  }
+
+  res.status(200).send("OK");
 });
 
-console.log(result.action); // "resolve" | "escalate" | "reply"
-console.log(result.response);
+app.listen(3001);
 ```
 
 ## Best Practices
 
-- **Start simple** — Build agents for one specific task, not general-purpose bots
-- **Always have an escalation path** — If your agent can't handle something, route to a human
-- **Log everything** — Use `conversation.addNote()` to leave an audit trail
-- **Test with real data** — Use the testing framework with actual conversation samples
-- **Monitor performance** — Check resolution rates and customer satisfaction scores
+- **Verify webhook signatures** — always check the `X-GudDesk-Signature` header
+- **Respond quickly** — return a 200 status within a few seconds; do heavy processing asynchronously
+- **Start simple** — build agents for one specific task, not general-purpose bots
+- **Always have an escalation path** — if your agent can't handle something, leave the conversation open for a human
+- **Use `senderName`** — identify your agent's replies so humans know which bot responded
 
 ## Next Steps
 
 - [API Overview](/docs/api/overview) — Full REST API documentation
-- [Webhooks](/docs/api/webhooks) — Listen for events from external services
+- [Webhooks](/docs/api/webhooks) — Webhook event reference and payload format
+- [gud-agent](https://github.com/gudlab/gud-agent) — Open-source AI support agent reference implementation

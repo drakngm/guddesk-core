@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { usePusher } from "./use-pusher";
+import { usePusher, usePusherReconnect } from "./use-pusher";
 
 export interface MessageItem {
   id: string;
@@ -62,6 +62,10 @@ export function useMessages(conversationId: string | null) {
       fetchMessages();
     },
   );
+
+  // Resync after reconnect — any message:created fired while we were
+  // disconnected is gone forever.
+  usePusherReconnect(fetchMessages);
 
   return { messages, isLoading, refetch: fetchMessages };
 }

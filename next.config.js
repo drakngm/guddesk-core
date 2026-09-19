@@ -25,6 +25,16 @@ const nextConfig = {
           { key: "Access-Control-Max-Age", value: "86400" },
         ],
       },
+      {
+        source: "/api/mcp",
+        headers: [
+          { key: "Access-Control-Allow-Origin", value: "*" },
+          { key: "Access-Control-Allow-Methods", value: "GET, POST, DELETE, OPTIONS" },
+          { key: "Access-Control-Allow-Headers", value: "Content-Type, Authorization, Mcp-Session-Id, Mcp-Protocol-Version" },
+          { key: "Access-Control-Expose-Headers", value: "Mcp-Session-Id" },
+          { key: "Access-Control-Max-Age", value: "86400" },
+        ],
+      },
     ];
   },
   images: {

@@ -3,8 +3,9 @@ import { MetadataRoute } from "next";
 import { allDocs, allPosts } from "contentlayer/generated";
 
 import { env } from "@/env.mjs";
-
-const ALTERNATIVES = ["intercom", "zendesk", "freshdesk"];
+import { getAllAlternativeSlugs } from "@/lib/alternatives";
+import { getAllFeatureSlugs } from "@/lib/features";
+import { getAllUseCaseSlugs } from "@/lib/use-cases";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const siteUrl = env.NEXT_PUBLIC_APP_URL;
@@ -12,9 +13,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
   // Static marketing pages
   const staticPages: MetadataRoute.Sitemap = [
     "",
+    "/pricing",
     "/blog",
     "/docs",
     "/integrations",
+    "/roadmap",
     "/terms",
     "/privacy",
   ].map((route) => ({
@@ -44,13 +47,42 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.6,
     }));
 
-  // Alternatives pages
-  const alternativePages: MetadataRoute.Sitemap = ALTERNATIVES.map((slug) => ({
-    url: `${siteUrl}/alternatives/${slug}`,
-    lastModified: new Date(),
-    changeFrequency: "monthly" as const,
-    priority: 0.8,
-  }));
+  // Alternatives pages (programmatic SEO)
+  const alternativePages: MetadataRoute.Sitemap = getAllAlternativeSlugs().map(
+    (slug) => ({
+      url: `${siteUrl}/alternatives/${slug}`,
+      lastModified: new Date(),
+      changeFrequency: "monthly" as const,
+      priority: 0.8,
+    }),
+  );
 
-  return [...staticPages, ...blogPages, ...docPages, ...alternativePages];
+  // Feature pages (programmatic SEO)
+  const featurePages: MetadataRoute.Sitemap = getAllFeatureSlugs().map(
+    (slug) => ({
+      url: `${siteUrl}/features/${slug}`,
+      lastModified: new Date(),
+      changeFrequency: "monthly" as const,
+      priority: 0.8,
+    }),
+  );
+
+  // Use case pages (programmatic SEO)
+  const useCasePages: MetadataRoute.Sitemap = getAllUseCaseSlugs().map(
+    (slug) => ({
+      url: `${siteUrl}/use-cases/${slug}`,
+      lastModified: new Date(),
+      changeFrequency: "monthly" as const,
+      priority: 0.8,
+    }),
+  );
+
+  return [
+    ...staticPages,
+    ...blogPages,
+    ...docPages,
+    ...alternativePages,
+    ...featurePages,
+    ...useCasePages,
+  ];
 }

@@ -3,7 +3,9 @@
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { requireWorkspaceMember } from "@/lib/workspace";
-import { getPusherServer } from "@/lib/pusher-server";
+import { safeTriggerBatch } from "@/lib/pusher-server";
+import { triggerCsatSurvey } from "@/lib/surveys/trigger";
+import { dispatchWebhooks } from "@/lib/webhooks";
 import { revalidatePath } from "next/cache";
 
 export async function updateConversationStatus(
@@ -51,18 +53,34 @@ export async function updateConversationStatus(
       },
     });
 
-    const pusher = getPusherServer();
-    if (pusher) {
-      await pusher.trigger(
-        `private-workspace-${conversation.workspaceId}`,
-        "conversation:updated",
-        { conversationId, status },
+    await safeTriggerBatch(
+      [
+        {
+          channel: `private-workspace-${conversation.workspaceId}`,
+          name: "conversation:updated",
+          data: { conversationId, status },
+        },
+        {
+          channel: `private-conversation-${conversationId}`,
+          name: "conversation:updated",
+          data: { status },
+        },
+      ],
+      "updateConversationStatus",
+    );
+
+    // Trigger CSAT survey on close (fire-and-forget)
+    if (status === "CLOSED") {
+      triggerCsatSurvey(conversationId).catch((err) =>
+        console.error("CSAT trigger error:", err),
       );
-      await pusher.trigger(
-        `private-conversation-${conversationId}`,
-        "conversation:updated",
-        { status },
-      );
+
+      // Dispatch conversation.closed webhook
+      await dispatchWebhooks(conversation.workspaceId, "conversation.closed", {
+        conversationId,
+        closedBy: session.user.id,
+        closedByName: session.user.name,
+      });
     }
 
     revalidatePath(`/workspace`);

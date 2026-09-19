@@ -1,7 +1,11 @@
+import { createHmac } from "crypto";
+
 import { NextRequest, NextResponse } from "next/server";
 
 import { prisma } from "@/lib/db";
 import { createVisitorToken, verifyVisitorToken } from "@/lib/visitor-auth";
+import { autoAssignCompany } from "@/lib/company-matching";
+import { trackCustomerEvent } from "@/lib/customer-events";
 
 // POST /api/widget/visitors
 // Identify a visitor (set name, email, externalId, metadata)
@@ -9,7 +13,7 @@ import { createVisitorToken, verifyVisitorToken } from "@/lib/visitor-auth";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { appId: rawAppId, visitorToken, externalId, name, email, metadata } = body;
+    const { appId: rawAppId, visitorToken, externalId, name, email, metadata, userHash } = body;
 
     if (!rawAppId) {
       return NextResponse.json(
@@ -28,6 +32,37 @@ export async function POST(req: NextRequest) {
 
     if (!workspace) {
       return NextResponse.json({ error: "Invalid App ID" }, { status: 401 });
+    }
+
+    // ── Identity verification (HMAC-SHA256) ─────────────────────────────
+    // When a workspace has an identitySecret set, any identify() call that
+    // includes an externalId (userId) must also provide a valid userHash.
+    // This prevents client-side impersonation.
+    if (externalId) {
+      const widgetSettings = await prisma.widgetSettings.findUnique({
+        where: { workspaceId: workspace.id },
+        select: { identitySecret: true },
+      });
+
+      if (widgetSettings?.identitySecret) {
+        if (!userHash || typeof userHash !== "string") {
+          return NextResponse.json(
+            { error: "Identity verification is enabled. Provide a userHash generated server-side with HMAC-SHA256(secret, userId)." },
+            { status: 403 },
+          );
+        }
+
+        const expected = createHmac("sha256", widgetSettings.identitySecret)
+          .update(externalId)
+          .digest("hex");
+
+        if (userHash !== expected) {
+          return NextResponse.json(
+            { error: "Invalid identity hash" },
+            { status: 403 },
+          );
+        }
+      }
     }
 
     // If we have an externalId, try to find an existing visitor
@@ -49,6 +84,21 @@ export async function POST(req: NextRequest) {
             lastSeenAt: new Date(),
           },
         });
+
+        // Auto-assign company by email domain (fire-and-forget)
+        const visitorEmail = email ?? existingVisitor.email;
+        if (visitorEmail) {
+          autoAssignCompany(workspace.id, existingVisitor.id, visitorEmail);
+        }
+
+        // Track identify event
+        trackCustomerEvent(
+          workspace.id,
+          existingVisitor.id,
+          "customer.identified",
+          `Identified via widget${email ? ` as ${email}` : ""}`,
+          { externalId, name, email },
+        );
 
         const token = createVisitorToken(existingVisitor.id, workspace.id);
         return NextResponse.json({
@@ -73,6 +123,22 @@ export async function POST(req: NextRequest) {
           },
         });
 
+        // Auto-assign company by email domain (fire-and-forget)
+        if (email) {
+          autoAssignCompany(workspace.id, payload.visitorId, email);
+        }
+
+        // Track identify event
+        if (externalId || email || name) {
+          trackCustomerEvent(
+            workspace.id,
+            payload.visitorId,
+            "customer.identified",
+            `Identified via widget${email ? ` as ${email}` : ""}`,
+            { externalId, name, email },
+          );
+        }
+
         return NextResponse.json({
           visitorId: payload.visitorId,
           visitorToken,
@@ -91,6 +157,20 @@ export async function POST(req: NextRequest) {
         lastSeenAt: new Date(),
       },
     });
+
+    // Auto-assign company by email domain (fire-and-forget)
+    if (email) {
+      autoAssignCompany(workspace.id, visitor.id, email);
+    }
+
+    // Track new customer identified
+    trackCustomerEvent(
+      workspace.id,
+      visitor.id,
+      "customer.identified",
+      `New customer identified${email ? ` as ${email}` : ""}`,
+      { externalId, name, email, isNew: true },
+    );
 
     const token = createVisitorToken(visitor.id, workspace.id);
     return NextResponse.json({

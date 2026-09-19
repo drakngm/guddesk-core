@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { prisma } from "@/lib/db";
-import { getPusherServer } from "@/lib/pusher-server";
+import { safeTrigger } from "@/lib/pusher-server";
+import { dispatchWebhooks } from "@/lib/webhooks";
 import { createVisitorToken, verifyVisitorToken } from "@/lib/visitor-auth";
+import { computeSlaDeadlines } from "@/lib/sla/compute";
 
 // POST /api/widget/conversations
 // Creates a new conversation (or resumes existing) with the first message
@@ -80,6 +82,7 @@ export async function POST(req: NextRequest) {
       data: {
         workspaceId: workspace.id,
         visitorId,
+        channel: "WIDGET",
         status: "OPEN",
         lastMessageAt: new Date(),
         lastMessagePreview:
@@ -97,16 +100,53 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // Compute SLA deadlines (fire-and-forget)
+    computeSlaDeadlines(workspace.id, conversation.priority, conversation.createdAt)
+      .then((sla) => {
+        if (sla) {
+          return prisma.conversation.update({
+            where: { id: conversation.id },
+            data: {
+              slaPolicyId: sla.slaPolicyId,
+              firstResponseDueAt: sla.firstResponseDueAt,
+              resolutionDueAt: sla.resolutionDueAt,
+            },
+          });
+        }
+      })
+      .catch((err) => console.error("SLA compute error:", err));
+
     // Trigger real-time event for workspace inbox
-    const pusher = getPusherServer();
-    if (pusher) {
-      await pusher.trigger(`private-workspace-${workspace.id}`, "conversation:created", {
+    await safeTrigger(
+      `private-workspace-${workspace.id}`,
+      "conversation:created",
+      {
         id: conversation.id,
         visitorId,
         status: conversation.status,
         lastMessageAt: conversation.lastMessageAt,
         lastMessagePreview: conversation.lastMessagePreview,
         createdAt: conversation.createdAt,
+      },
+      "POST /api/widget/conversations",
+    );
+
+    // Dispatch webhooks (awaited — required for Vercel serverless)
+    const firstMessage = conversation.messages[0];
+    await dispatchWebhooks(workspace.id, "conversation.created", {
+      conversationId: conversation.id,
+      visitorId,
+      status: "OPEN",
+      firstMessage: message,
+      createdAt: conversation.createdAt,
+    });
+    if (firstMessage) {
+      await dispatchWebhooks(workspace.id, "message.created", {
+        conversationId: conversation.id,
+        messageId: firstMessage.id,
+        type: "VISITOR",
+        body: message,
+        workspaceId: workspace.id,
       });
     }
 

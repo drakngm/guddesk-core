@@ -23,6 +23,7 @@ export async function GET(req: NextRequest) {
     select: {
       id: true,
       name: true,
+      plan: true,
       widgetSettings: {
         select: {
           primaryColor: true,
@@ -53,7 +54,10 @@ export async function GET(req: NextRequest) {
     position: workspace.widgetSettings?.position ?? "bottom-right",
     welcomeMessage:
       workspace.widgetSettings?.welcomeMessage ?? "Hi! How can we help you?",
-    showBranding: workspace.widgetSettings?.showBranding ?? true,
+    showBranding:
+      workspace.plan !== "PRO"
+        ? true
+        : (workspace.widgetSettings?.showBranding ?? true),
     requireEmail: workspace.widgetSettings?.requireEmail ?? false,
     suggestArticles: workspace.widgetSettings?.suggestArticles ?? true,
     offlineFormTimeout: workspace.widgetSettings?.offlineFormTimeout ?? null,

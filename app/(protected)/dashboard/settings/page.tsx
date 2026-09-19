@@ -7,6 +7,7 @@ import { DeleteAccountSection } from "@/components/dashboard/delete-account";
 import { DashboardHeader } from "@/components/dashboard/header";
 import { SectionColumns } from "@/components/dashboard/section-columns";
 import { UserNameForm } from "@/components/forms/user-name-form";
+
 import { Badge } from "@/components/ui/badge";
 
 export const metadata = constructMetadata({
@@ -20,6 +21,7 @@ export default async function SettingsPage() {
   if (!user?.id) redirect("/login");
 
   const workspaces = await getUserWorkspaces(user.id);
+  const hasProWorkspace = workspaces.some((t) => t.plan === "PRO");
 
   return (
     <>
@@ -65,6 +67,14 @@ export default async function SettingsPage() {
                   : workspaces.map((t) => t.name).join(", ")}
               </span>
             </div>
+            {hasProWorkspace && (
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Plan:</span>
+                <Badge className="bg-emerald-600 text-white hover:bg-emerald-700">
+                  Pro
+                </Badge>
+              </div>
+            )}
           </div>
         </SectionColumns>
 
