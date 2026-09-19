@@ -147,7 +147,7 @@ export async function deleteWebhookEndpoint(
   }
 }
 
-// ── Delivery Logs ─────────────────────────────────────────────────────────
+// ── Delivery Logs ───────────────────────────────────────
 
 export async function getWebhookDeliveries(
   endpointId: string,
