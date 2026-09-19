@@ -14,7 +14,11 @@ export const env = createEnv({
     // Pusher (real-time messaging)
     PUSHER_APP_ID: z.string().optional(),
     PUSHER_SECRET: z.string().optional(),
-    // Anthropic (AI features)
+    // Stripe (payments)
+    STRIPE_SECRET_KEY: z.string().optional(),
+    STRIPE_WEBHOOK_SECRET: z.string().optional(),
+    STRIPE_PRO_PRICE_ID: z.string().optional(),
+    // Anthropic (AI features - paid tier only)
     ANTHROPIC_API_KEY: z.string().optional(),
     // Slack integration
     SLACK_CLIENT_ID: z.string().optional(),
@@ -25,6 +29,8 @@ export const env = createEnv({
     // Pusher (real-time messaging)
     NEXT_PUBLIC_PUSHER_KEY: z.string().optional(),
     NEXT_PUBLIC_PUSHER_CLUSTER: z.string().optional(),
+    // Stripe
+    NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string().optional(),
     // Microsoft Clarity (analytics)
     NEXT_PUBLIC_CLARITY_PROJECT_ID: z.string().optional(),
   },
@@ -40,6 +46,10 @@ export const env = createEnv({
     PUSHER_SECRET: process.env.PUSHER_SECRET,
     NEXT_PUBLIC_PUSHER_KEY: process.env.NEXT_PUBLIC_PUSHER_KEY,
     NEXT_PUBLIC_PUSHER_CLUSTER: process.env.NEXT_PUBLIC_PUSHER_CLUSTER,
+    STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
+    STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
+    STRIPE_PRO_PRICE_ID: process.env.STRIPE_PRO_PRICE_ID,
+    NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,
     ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY,
     SLACK_CLIENT_ID: process.env.SLACK_CLIENT_ID,
     SLACK_CLIENT_SECRET: process.env.SLACK_CLIENT_SECRET,

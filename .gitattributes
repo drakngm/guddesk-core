@@ -1,0 +1,6 @@
+*.ts linguist-language=TypeScript
+*.tsx linguist-language=TypeScript
+*.js linguist-detectable=false
+public/widget.js linguist-generated=true
+packages/widget/dist/* linguist-generated=true
+pnpm-lock.yaml linguist-generated=true

@@ -20,24 +20,40 @@ export const footerLinks: SidebarNavItem[] = [
   {
     title: "Product",
     items: [
-      { title: "Features", href: "/#features" },
+      { title: "Live Chat", href: "/features/live-chat" },
+      { title: "AI Agents", href: "/features/ai-agents" },
+      { title: "Shared Inbox", href: "/features/shared-inbox" },
+      { title: "Knowledge Base", href: "/features/knowledge-base" },
       { title: "Integrations", href: "/integrations" },
-      { title: "Documentation", href: "/docs" },
-      { title: "GitHub", href: "https://github.com/gudlab/guddesk-core" },
+      { title: "Pricing", href: "/pricing" },
+    ],
+  },
+  {
+    title: "Use Cases",
+    items: [
+      { title: "SaaS Companies", href: "/use-cases/saas" },
+      { title: "Ecommerce", href: "/use-cases/ecommerce" },
+      { title: "Startups", href: "/use-cases/startups" },
+      { title: "Agencies", href: "/use-cases/agencies" },
+      { title: "Open Source", href: "/use-cases/open-source" },
     ],
   },
   {
     title: "Resources",
     items: [
       { title: "Blog", href: "/blog" },
+      { title: "Documentation", href: "/docs" },
       { title: "Help Center", href: "/help" },
-      { title: "Alternatives", href: "/alternatives/intercom" },
-      { title: "Self-Hosting Guide", href: "/docs/self-hosting" },
+      { title: "Roadmap", href: "/roadmap" },
+      { title: "GitHub", href: "https://github.com/gudlab/guddesk-core" },
     ],
   },
   {
-    title: "Company",
+    title: "Compare",
     items: [
+      { title: "vs Intercom", href: "/alternatives/intercom" },
+      { title: "vs Zendesk", href: "/alternatives/zendesk" },
+      { title: "vs Freshdesk", href: "/alternatives/freshdesk" },
       { title: "Terms", href: "/terms" },
       { title: "Privacy", href: "/privacy" },
     ],

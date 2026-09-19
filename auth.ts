@@ -59,6 +59,11 @@ export const {
 
       if (!dbUser) return token;
 
+      // Block banned users from getting a valid session
+      if (dbUser.isBanned) {
+        return {} as typeof token;
+      }
+
       token.name = dbUser.name;
       token.email = dbUser.email;
       token.picture = dbUser.image;

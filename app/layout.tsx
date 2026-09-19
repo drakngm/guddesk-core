@@ -7,8 +7,10 @@ import { ThemeProvider } from "next-themes";
 
 import { cn, constructMetadata } from "@/lib/utils";
 import { Toaster } from "@/components/ui/sonner";
+import { Analytics } from "@/components/analytics";
 import ModalProvider from "@/components/modals/providers";
 import { TailwindIndicator } from "@/components/tailwind-indicator";
+import { OrganizationJsonLd } from "@/components/shared/json-ld";
 
 interface RootLayoutProps {
   children: React.ReactNode;
@@ -20,6 +22,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <OrganizationJsonLd />
         <Script
           id="guddesk-settings"
           strategy="beforeInteractive"
@@ -49,6 +52,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
             disableTransitionOnChange
           >
             <ModalProvider>{children}</ModalProvider>
+            <Analytics />
             <Toaster richColors closeButton />
             <TailwindIndicator />
           </ThemeProvider>
