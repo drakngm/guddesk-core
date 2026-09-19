@@ -79,7 +79,7 @@ async function generateOGImage(logoSource) {
   <text x="190" y="340" font-family="system-ui, -apple-system, sans-serif" font-size="28" fill="#9ca3af">The open-source Intercom alternative</text>
   <text x="190" y="420" font-family="system-ui, -apple-system, sans-serif" font-size="20" fill="#6b7280">Live Chat · Shared Inbox · Knowledge Base · AI Agents · Automations</text>
   <text x="80" y="560" font-family="system-ui, -apple-system, sans-serif" font-size="20" fill="#3ECF8E">guddesk.com</text>
-  <text x="1120" y="560" font-family="system-ui, -apple-system, sans-serif" font-size="18" fill="#4b5563" text-anchor="end">Open Source · GPL-3.0</text>
+  <text x="1120" y="560" font-family="system-ui, -apple-system, sans-serif" font-size="18" fill="#4b5563" text-anchor="end">Open Source · AGPL-3.0</text>
 </svg>`;
 
   // Generate base OG image
