@@ -328,7 +328,7 @@ export default function PricingPage() {
         </MaxWidthWrapper>
       </section>
 
-      {/* ── Divider ────────────────────────────────── */}
+      {/* ── Divider ──────────────────────────────── */}
       <div className="border-t" />
 
       {/* ── Section 2: Upgrade to Pro ──────────────── */}
