@@ -334,7 +334,7 @@ export function WebhookDeliveryLog({
   );
 }
 
-// ── Helper components ───────────────────────────
+// ── Helper components ───────────────────────────────────
 
 function StatusBadge({ status }: { status: WebhookDeliveryStatus }) {
   switch (status) {
