@@ -10,18 +10,10 @@ import {
 } from "@/actions/update-widget-settings";
 import { Button } from "@/components/ui/button";
 
-// ---------------------------------------------------------------------------
-// Props
-// ---------------------------------------------------------------------------
-
 interface IdentityVerificationProps {
   workspaceId: string;
   initialSecret: string | null;
 }
-
-// ---------------------------------------------------------------------------
-// Component
-// ---------------------------------------------------------------------------
 
 export function IdentityVerification({
   workspaceId,
@@ -111,7 +103,6 @@ window.GudDesk.identify({
 
       {isEnabled && secret && (
         <div className="mt-4 space-y-4">
-          {/* Secret display */}
           <div>
             <label className="mb-1 block text-xs font-medium text-muted-foreground">
               Secret Key
@@ -137,7 +128,6 @@ window.GudDesk.identify({
             </p>
           </div>
 
-          {/* Server-side HMAC snippet */}
           <div>
             <label className="mb-1 block text-xs font-medium text-muted-foreground">
               Server-side: Generate the hash
@@ -149,7 +139,6 @@ window.GudDesk.identify({
         </div>
       )}
 
-      {/* Identify snippet (always shown) */}
       <div className="mt-4">
         <label className="mb-1 block text-xs font-medium text-muted-foreground">
           Client-side: Identify logged-in users
