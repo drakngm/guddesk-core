@@ -1,7 +1,7 @@
 /**
  * Widget channel provider.
  *
- * Thin wrapper -- the widget uses Pusher for real-time delivery,
+ * Thin wrapper — the widget uses Pusher for real-time delivery,
  * so sendOutbound is a no-op. handleInbound is also not used
  * because widget conversations are created via the widget API.
  */
