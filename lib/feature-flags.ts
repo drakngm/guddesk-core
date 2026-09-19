@@ -1,6 +1,6 @@
 /**
- * Feature flags for GudDesk Core (open-source edition).
- * Everything is unlimited — no plan-based gating.
+ * Feature flags for GudDesk Core (public AGPL edition).
+ * Self-host is uncapped. Cloud Free / Pro $29 / Business ~$99 live on guddesk.com.
  */
 
 export type PlanLimits = {
