@@ -29,8 +29,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Visitor channels (from widget)
-    if (channelName.startsWith("presence-visitor-")) {
+    // Visitor channels (from widget). Private (not presence) — the
+    // widget only consumes server-fanned events, doesn't need presence
+    // membership semantics, and presence channels cost more per Pusher's
+    // pricing/limits.
+    if (channelName.startsWith("private-visitor-")) {
       const visitorToken = req.headers.get("x-visitor-token");
       if (!visitorToken) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
@@ -41,11 +44,24 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
       }
 
-      const authResponse = pusher.authorizeChannel(socketId, channelName, {
-        user_id: payload.visitorId,
-        user_info: { type: "visitor" },
+      // Verify the conversation actually belongs to this visitor.
+      // Without this, any valid visitor token could subscribe to another
+      // visitor's conversation channel and read their messages.
+      const conversationId = channelName.replace("private-visitor-", "");
+      const conversation = await prisma.conversation.findUnique({
+        where: { id: conversationId },
+        select: { visitorId: true, workspaceId: true },
       });
 
+      if (
+        !conversation ||
+        conversation.visitorId !== payload.visitorId ||
+        conversation.workspaceId !== payload.workspaceId
+      ) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+      }
+
+      const authResponse = pusher.authorizeChannel(socketId, channelName);
       return NextResponse.json(authResponse);
     }
 
@@ -103,6 +119,43 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(authResponse);
     }
 
+    // Presence conversation channels (collision detection)
+    if (channelName.startsWith("presence-conversation-")) {
+      const conversationId = channelName.replace("presence-conversation-", "");
+
+      const conversation = await prisma.conversation.findUnique({
+        where: { id: conversationId },
+        select: { workspaceId: true },
+      });
+
+      if (!conversation) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+      }
+
+      const membership = await prisma.workspaceMember.findUnique({
+        where: {
+          workspaceId_userId: {
+            workspaceId: conversation.workspaceId,
+            userId: session.user.id,
+          },
+        },
+      });
+
+      if (!membership) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+      }
+
+      const authResponse = pusher.authorizeChannel(socketId, channelName, {
+        user_id: session.user.id,
+        user_info: {
+          name: session.user.name,
+          image: session.user.image,
+        },
+      });
+
+      return NextResponse.json(authResponse);
+    }
+
     // Presence workspace channels
     if (channelName.startsWith("presence-workspace-")) {
       const workspaceId = channelName.replace("presence-workspace-", "");
@@ -122,6 +175,7 @@ export async function POST(req: NextRequest) {
         user_info: {
           name: session.user.name,
           image: session.user.image,
+          availability: membership.availability,
         },
       });
 
