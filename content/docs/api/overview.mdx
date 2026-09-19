@@ -3,42 +3,54 @@ title: API Overview
 description: Authenticate and interact with the GudDesk REST API.
 ---
 
-The GudDesk REST API lets you programmatically manage conversations, customers, articles, and agents. Use it to build integrations, automate workflows, or sync data with your other tools.
+The GudDesk REST API lets you programmatically manage workspaces, conversations, customers, and knowledge base articles. Use it to build integrations, automate workflows, power AI agents, or sync data with your other tools.
 
 ## Base URL
 
 ```
-https://your-guddesk-domain.com/api/v1
+https://guddesk.com/api
 ```
 
-For the hosted cloud:
+Self-hosted instances use your own domain:
 
 ```
-https://api.guddesk.com/v1
+https://your-domain.com/api
 ```
 
 ## Authentication
 
-All API requests require an API key. Generate one in **Dashboard > Settings > API Keys**.
+All API requests require an API key. Create one in **Dashboard > Settings > API Keys**.
+
+API keys are tied to your **account** and can optionally be scoped to a specific workspace. If your key is scoped to "All Workspaces," you must include a `workspaceId` query parameter or body field in workspace-scoped requests.
 
 Include the key in the `Authorization` header:
 
 ```bash
-curl https://api.guddesk.com/v1/conversations \
-  -H "Authorization: Bearer gd_live_abc123..."
+curl https://guddesk.com/api/v1/conversations?workspaceId=ws_123 \
+  -H "Authorization: Bearer gd_abc123..."
 ```
 
-### API Key Types
+Or use the `x-api-key` header:
 
-| Type | Prefix | Permissions | Visibility |
-|---|---|---|---|
-| **Public** | `gd_pub_` | Widget only — start conversations, send messages | Safe to expose in client-side code |
-| **Live** | `gd_live_` | Full access to production data | Server-side only — never expose |
-| **Test** | `gd_test_` | Sandboxed access for development | Server-side only — never expose |
+```bash
+curl https://guddesk.com/api/v1/conversations?workspaceId=ws_123 \
+  -H "x-api-key: gd_abc123..."
+```
 
-<Callout type="warning">
-  Never use `gd_live_` or `gd_test_` keys in client-side code, browser scripts, or your chat widget. Use `gd_pub_` keys for the widget — they only allow visitors to start conversations, which is the same thing they can already do by visiting your site.
-</Callout>
+### Permission Levels
+
+Each API key has a permission level that controls what it can do:
+
+| Permission | Description |
+|---|---|
+| **Read Only** | List and read conversations, messages, articles, customers, workspaces |
+| **Read & Write** | Everything in Read Only, plus create/update conversations, send messages, create articles and customers |
+| **Full Access** | Everything in Read & Write, plus delete resources, manage webhooks, create workspaces |
+
+### Workspace Scoping
+
+- **Single workspace key** — The `workspaceId` is fixed; no need to pass it in requests.
+- **All workspaces key** — You must include `workspaceId` as a query parameter or in the request body for workspace-scoped endpoints.
 
 ## Rate Limits
 
@@ -57,15 +69,23 @@ X-RateLimit-Reset: 1686825600
 
 ## Response Format
 
-All responses return JSON:
+All successful responses return JSON wrapped in a `data` key:
 
 ```json
 {
-  "data": { ... },
+  "data": { ... }
+}
+```
+
+List endpoints include pagination metadata:
+
+```json
+{
+  "data": [ ... ],
   "meta": {
-    "page": 1,
     "perPage": 25,
-    "total": 142
+    "total": 142,
+    "nextCursor": "clx9abc123"
   }
 }
 ```
@@ -82,51 +102,14 @@ All responses return JSON:
 }
 ```
 
-## Core Endpoints
-
-### Conversations
-
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/conversations` | List conversations |
-| `GET` | `/conversations/:id` | Get a conversation |
-| `POST` | `/conversations` | Create a conversation |
-| `POST` | `/conversations/:id/messages` | Send a message |
-| `PATCH` | `/conversations/:id` | Update status, assignee, tags |
-
-### Customers
-
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/customers` | List customers |
-| `GET` | `/customers/:id` | Get a customer |
-| `POST` | `/customers` | Create or update a customer |
-
-### Knowledge Base
-
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/articles` | List articles |
-| `GET` | `/articles/:id` | Get an article |
-| `POST` | `/articles` | Create an article |
-| `PATCH` | `/articles/:id` | Update an article |
-| `DELETE` | `/articles/:id` | Delete an article |
-
-### Agents
-
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/agents` | List agents |
-| `POST` | `/agents` | Deploy a custom agent |
-| `PATCH` | `/agents/:id` | Update agent configuration |
-| `DELETE` | `/agents/:id` | Remove an agent |
+Common error codes: `bad_request`, `unauthorized`, `forbidden`, `not_found`, `conflict`, `rate_limited`, `internal_error`.
 
 ## Pagination
 
 List endpoints support cursor-based pagination:
 
 ```bash
-GET /api/v1/conversations?limit=25&cursor=conv_abc123
+GET /api/v1/conversations?limit=25&cursor=clx9abc123
 ```
 
 | Parameter | Description |
@@ -134,7 +117,337 @@ GET /api/v1/conversations?limit=25&cursor=conv_abc123
 | `limit` | Items per page (default: 25, max: 100) |
 | `cursor` | Cursor from previous response's `meta.nextCursor` |
 
+---
+
+## Endpoints
+
+### Workspaces
+
+| Method | Path | Permission | Description |
+|---|---|---|---|
+| `GET` | `/v1/workspaces` | Read Only | List your workspaces |
+| `POST` | `/v1/workspaces` | Full Access | Create a workspace (requires All Workspaces key) |
+| `GET` | `/v1/workspaces/:id` | Read Only | Get workspace details |
+| `PATCH` | `/v1/workspaces/:id` | Read & Write | Update workspace name, slug, or logo |
+| `DELETE` | `/v1/workspaces/:id` | Full Access | Delete a workspace (owner only) |
+
+**Create workspace example:**
+
+```bash
+curl -X POST https://guddesk.com/api/v1/workspaces \
+  -H "Authorization: Bearer gd_abc123..." \
+  -H "Content-Type: application/json" \
+  -d '{"name": "My Support", "slug": "my-support"}'
+```
+
+### Conversations
+
+| Method | Path | Permission | Description |
+|---|---|---|---|
+| `GET` | `/v1/conversations` | Read Only | List conversations |
+| `POST` | `/v1/conversations` | Read & Write | Create a conversation |
+| `GET` | `/v1/conversations/:id` | Read Only | Get a conversation |
+| `PATCH` | `/v1/conversations/:id` | Read & Write | Update status, assignee, tags, priority |
+| `GET` | `/v1/conversations/:id/messages` | Read Only | List messages in a conversation |
+| `POST` | `/v1/conversations/:id/messages` | Read & Write | Send a message |
+
+**List conversations with filters:**
+
+```bash
+curl "https://guddesk.com/api/v1/conversations?workspaceId=ws_123&status=OPEN&limit=10" \
+  -H "Authorization: Bearer gd_abc123..."
+```
+
+**Update conversation:**
+
+```bash
+curl -X PATCH https://guddesk.com/api/v1/conversations/conv_123 \
+  -H "Authorization: Bearer gd_abc123..." \
+  -H "Content-Type: application/json" \
+  -d '{"status": "CLOSED", "tags": ["resolved", "billing"]}'
+```
+
+**Send a message:**
+
+```bash
+curl -X POST https://guddesk.com/api/v1/conversations/conv_123/messages \
+  -H "Authorization: Bearer gd_abc123..." \
+  -H "Content-Type: application/json" \
+  -d '{"body": "Hello! How can I help?", "type": "BOT", "senderName": "Support Bot"}'
+```
+
+### Customers
+
+Customers are visitors who have interacted with your workspace.
+
+| Method | Path | Permission | Description |
+|---|---|---|---|
+| `GET` | `/v1/customers` | Read Only | List customers |
+| `GET` | `/v1/customers/:id` | Read Only | Get a customer with recent conversations |
+| `POST` | `/v1/customers` | Read & Write | Create or update a customer |
+| `PATCH` | `/v1/customers/:id` | Read & Write | Update a customer's name, email, avatar, or metadata |
+
+**Upsert a customer by external ID:**
+
+```bash
+curl -X POST https://guddesk.com/api/v1/customers \
+  -H "Authorization: Bearer gd_abc123..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "externalId": "usr_456",
+    "name": "Jane Doe",
+    "email": "jane@example.com",
+    "metadata": {"plan": "pro", "company": "Acme"}
+  }'
+```
+
+If `externalId` matches an existing customer in the workspace, the record is updated. Otherwise a new customer is created.
+
+**Update a customer:**
+
+```bash
+curl -X PATCH https://guddesk.com/api/v1/customers/cust_123 \
+  -H "Authorization: Bearer gd_abc123..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Jane Smith",
+    "metadata": {"plan": "enterprise", "company": "Acme Inc"}
+  }'
+```
+
+Accepted fields: `name`, `email`, `externalId`, `avatarUrl`, `metadata`. Only include the fields you want to change.
+
+### Knowledge Base
+
+| Method | Path | Permission | Description |
+|---|---|---|---|
+| `GET` | `/v1/articles` | Read Only | List articles (metadata only, no body) |
+| `GET` | `/v1/articles/:id` | Read Only | Get a single article (includes full body) |
+| `POST` | `/v1/articles` | Read & Write | Create an article |
+| `PATCH` | `/v1/articles/:id` | Read & Write | Update an article |
+| `DELETE` | `/v1/articles/:id` | Full Access | Delete an article |
+
+**Create and publish an article:**
+
+```bash
+curl -X POST https://guddesk.com/api/v1/articles \
+  -H "Authorization: Bearer gd_abc123..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Getting Started",
+    "body": "Welcome to our product...",
+    "isPublished": true,
+    "collectionId": "col_789"
+  }'
+```
+
+**Filter articles:**
+
+```bash
+# Only published articles
+GET /api/v1/articles?workspaceId=ws_123&published=true
+
+# Articles in a specific collection
+GET /api/v1/articles?workspaceId=ws_123&collectionId=col_789
+```
+
+### Agents
+
+Agents are external services that receive webhook events and interact with your workspace via the API. Each agent gets a dedicated webhook endpoint and API key when installed.
+
+| Method | Path | Permission | Description |
+|---|---|---|---|
+| `GET` | `/v1/agents` | Read Only | List installed agents |
+| `POST` | `/v1/agents` | Read & Write | Install a new agent |
+| `GET` | `/v1/agents/:id` | Read Only | Get agent details |
+| `PATCH` | `/v1/agents/:id` | Read & Write | Update agent configuration |
+| `DELETE` | `/v1/agents/:id` | Full Access | Uninstall an agent |
+
+**Install an agent:**
+
+Installing an agent atomically creates a webhook endpoint and a dedicated API key. The response includes one-time credentials that must be stored.
+
+```bash
+curl -X POST https://guddesk.com/api/v1/agents \
+  -H "Authorization: Bearer gd_abc123..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "RefundBot",
+    "description": "Handles refund requests automatically",
+    "webhookUrl": "https://your-agent.com/webhook",
+    "events": {
+      "onMessageCreated": true,
+      "onConversationCreated": true
+    },
+    "config": {"escalationTeam": "billing"},
+    "priority": 1
+  }'
+```
+
+The response includes one-time credentials:
+
+```json
+{
+  "data": {
+    "id": "clx...",
+    "name": "RefundBot",
+    "type": "CUSTOM",
+    "isEnabled": true,
+    "credentials": {
+      "webhookSecret": "a1b2c3...",
+      "apiKey": "gd_xyz789..."
+    }
+  }
+}
+```
+
+**Uninstall an agent:**
+
+Uninstalling removes the agent, its webhook endpoint, and its API key.
+
+```bash
+curl -X DELETE https://guddesk.com/api/v1/agents/agent_123 \
+  -H "Authorization: Bearer gd_abc123..."
+```
+
+**Filter agents:**
+
+```bash
+# Only custom agents that are enabled
+GET /api/v1/agents?workspaceId=ws_123&type=CUSTOM&enabled=true
+```
+
+### Agent Integration
+
+These endpoints are designed for AI agents (like [gud-agent](https://github.com/gudlab/gud-agent)) to interact with GudDesk.
+
+| Method | Path | Permission | Description |
+|---|---|---|---|
+| `POST` | `/agent/reply` | Read & Write | Send a BOT message into a conversation |
+| `GET` | `/agent/webhooks` | Read Only | List webhook endpoints |
+| `POST` | `/agent/webhooks` | Full Access | Register a webhook endpoint |
+| `DELETE` | `/agent/webhooks` | Full Access | Remove a webhook endpoint |
+
+**Agent reply:**
+
+```bash
+curl -X POST https://guddesk.com/api/agent/reply \
+  -H "Authorization: Bearer gd_abc123..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "conversationId": "conv_123",
+    "body": "Based on our docs, you can reset your password at...",
+    "senderName": "AI Assistant"
+  }'
+```
+
+**Register a webhook (agent auto-registration):**
+
+```bash
+curl -X POST https://guddesk.com/api/agent/webhooks \
+  -H "Authorization: Bearer gd_abc123..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "url": "https://your-agent.com/webhook",
+    "description": "gud-agent",
+    "events": {
+      "onMessageCreated": true,
+      "onConversationCreated": true
+    }
+  }'
+```
+
+Returns the webhook `secret` for HMAC signature verification. If the URL already exists, returns the existing endpoint.
+
+The response follows the standard envelope format:
+
+```json
+{
+  "data": {
+    "status": "created",
+    "endpoint": {
+      "id": "clx...",
+      "url": "https://your-agent.com/webhook",
+      "secret": "a1b2c3...",
+      "isEnabled": true
+    }
+  }
+}
+```
+
+> **Note:** Webhook registration requires a **Full Access** API key. If your agent only needs to read/write articles and reply to conversations, a **Read & Write** key is sufficient — but you'll need to register the webhook manually in the dashboard.
+
+**Remove a webhook:**
+
+```bash
+curl -X DELETE https://guddesk.com/api/agent/webhooks \
+  -H "Authorization: Bearer gd_abc123..." \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://your-agent.com/webhook"}'
+```
+
+## MCP Server
+
+GudDesk exposes a [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) server, allowing AI assistants like Claude Desktop to interact with your support data using natural language.
+
+### HTTP Transport
+
+Send MCP requests to:
+
+```
+POST https://guddesk.com/api/mcp
+```
+
+Authenticate with the same API key as the REST API:
+
+```
+Authorization: Bearer gd_abc123...
+```
+
+### Claude Desktop (Stdio)
+
+Add GudDesk to your Claude Desktop config (`claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "guddesk": {
+      "command": "npx",
+      "args": ["guddesk-mcp"],
+      "env": {
+        "GUDDESK_API_KEY": "gd_abc123..."
+      }
+    }
+  }
+}
+```
+
+### Available Tools
+
+The MCP server exposes these tools:
+
+| Tool | Description |
+|---|---|
+| `list_conversations` | List and filter conversations |
+| `get_conversation` | Get conversation details |
+| `update_conversation` | Update status, assignee, tags, priority |
+| `assign_conversation` | Assign a conversation to a team member |
+| `close_conversation` | Close a conversation |
+| `list_messages` | List messages in a conversation |
+| `send_message` | Send a message to a conversation |
+| `add_internal_note` | Add an internal note |
+| `list_customers` | List customers |
+| `get_customer` | Get customer details with recent conversations |
+| `update_customer` | Update customer name, email, avatar, or metadata |
+| `list_articles` | List knowledge base articles |
+| `get_article` | Get article content |
+| `search_articles` | Search articles by keyword |
+| `get_workspace` | Get workspace details |
+| `list_workspace_members` | List team members |
+| `list_agents` | List installed agents |
+| `get_agent` | Get agent details |
+
 ## Next Steps
 
-- [Webhooks](/docs/api/webhooks) — Receive real-time events
-- [Custom Agents](/docs/agents/custom-agents) — Build automated workflows with the API
+- [Webhooks](/docs/api/webhooks) — Receive real-time event notifications
+- [gud-agent](https://github.com/gudlab/gud-agent) — Open-source AI support agent
