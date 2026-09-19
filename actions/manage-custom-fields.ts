@@ -104,7 +104,7 @@ export async function updateCustomField(
 
     const updateData: Record<string, unknown> = {};
     if (data.name !== undefined) updateData.name = data.name.trim();
-    if (data.isEnabled !== undefined) updateData.isEnabled = data.isEnabled;
+    if (data.isRequired !== undefined) updateData.isRequired = data.isRequired;
     if (data.enumOptions !== undefined) updateData.enumOptions = data.enumOptions;
     if (data.displayOrder !== undefined) updateData.displayOrder = data.displayOrder;
 
