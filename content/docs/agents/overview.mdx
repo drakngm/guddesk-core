@@ -1,75 +1,75 @@
 ---
 title: AI Agents Overview
-description: Understand how GudDesk's AI agents work and how they can automate your customer support.
+description: Understand how GudDesk agents work and how they automate your customer support.
 ---
 
-AI agents in GudDesk are automated bots that can read customer messages, search your knowledge base, take actions, and resolve conversations — or hand off to a human when they can't help.
-
-Unlike simple chatbots that follow scripted flows, GudDesk agents understand context and make decisions.
+Agents in GudDesk are external services that receive webhook events and interact with your workspace via the REST API. Each agent brings its own logic, LLM, and billing — GudDesk provides the conversation data and actions.
 
 ## How Agents Work
 
-1. A customer sends a message through the chat widget
-2. The active agent analyzes the message intent
-3. The agent searches your knowledge base and conversation history
-4. It either resolves the conversation or escalates to a human
+1. An event happens in your workspace (new message, new conversation, etc.)
+2. GudDesk sends a webhook to every installed agent that subscribes to that event
+3. The agent processes the event — searches knowledge bases, calls LLMs, checks your systems
+4. The agent acts via the GudDesk API — replying, tagging, assigning, or resolving conversations
 5. The entire interaction is logged in your inbox
 
-## Built-In Agents
+## Agent Architecture
 
-GudDesk ships with three agents ready to use:
+Agents are **not** hosted by GudDesk. They're external web services at HTTPS URLs, similar to how apps work on Shopify or Slack. This means:
 
-| Agent | Purpose | Trigger |
-|---|---|---|
-| **GudBot** | First responder — answers questions using your knowledge base | All new conversations |
-| **TriageBot** | Routes conversations to the right team or agent | Configurable rules |
-| **OnboardBot** | Guides new users through setup and activation | New user sign-up |
+- **You choose your LLM** — use Claude, GPT, Llama, or no LLM at all
+- **You own your billing** — charge users however you want; GudDesk doesn't take a cut
+- **You control the logic** — agents can integrate with your internal systems, CRMs, order databases, etc.
+- **Any language** — write agents in TypeScript, Python, Go, Rust, or anything that can serve HTTP
 
-See [Built-In Agents](/docs/agents/built-in) for detailed configuration guides.
+## Installing Agents
 
-## Agent Capabilities
+Install agents in **Settings > AI Agents**. When you install an agent, GudDesk creates:
 
-Agents can:
+1. A **webhook endpoint** — GudDesk sends events to your agent's URL, signed with HMAC SHA-256
+2. A **dedicated API key** — your agent uses this to call the GudDesk API (READ_WRITE permission, scoped to the workspace)
 
-- **Search the knowledge base** and suggest relevant articles
-- **Resolve conversations** when the answer is clear
-- **Escalate to humans** when they can't help
-- **Collect information** (email, order number, etc.) before routing
-- **Tag and prioritize** conversations automatically
-- **Send follow-up messages** after resolution
+Both credentials are shown once at install time and must be stored securely.
 
-## Enabling Agents
+## Agent Types
 
-1. Go to **Settings > AI Agents**
-2. Toggle on the agents you want to activate
-3. Configure each agent's behavior (response style, escalation rules)
-4. Set the agent order (which agent responds first)
+| Type | Description |
+|---|---|
+| **Built-in** | Platform-provided agents (coming soon) |
+| **Marketplace** | Third-party agents from the GudDesk marketplace (coming soon) |
+| **Custom** | Self-hosted agents you install by providing a webhook URL |
 
-## AI Provider
+## Available Events
 
-Built-in agents use your knowledge base as their data source — no AI API key required for basic article suggestions.
+| Event | Description |
+|---|---|
+| `message.created` | A visitor or agent sent a message |
+| `conversation.created` | A new conversation started |
+| `conversation.closed` | A conversation was resolved |
+| `conversation.assigned` | A conversation was assigned to a team member |
 
-For advanced capabilities (natural language understanding, complex reasoning), connect an AI provider:
-
-1. Go to **Settings > AI Agents > Provider**
-2. Add your `ANTHROPIC_API_KEY`
-3. Advanced features activate automatically
-
-## Conversation Flow
+## Example Flow
 
 ```
-Customer Message
+Customer sends: "I want a refund for order #1234"
        ↓
-  GudBot (search KB, attempt resolution)
+GudDesk dispatches webhook to RefundBot
        ↓
-  Resolved? → Yes → Auto-close conversation
-       ↓ No
-  TriageBot (route to correct team)
+RefundBot checks order database
        ↓
-  Human agent picks up
+RefundBot calls POST /api/agent/reply
+  "Your refund has been processed!"
+       ↓
+RefundBot calls PATCH /api/v1/conversations/:id
+  { "status": "CLOSED", "tags": ["refund", "resolved"] }
 ```
+
+## Reference Implementation
+
+[gud-agent](https://github.com/gudlab/gud-agent) is an open-source AI support agent that uses this exact pattern. It's a great starting point for building your own agent.
 
 ## Next Steps
 
-- [Learn about built-in agents](/docs/agents/built-in) in detail
-- [Build a custom agent](/docs/agents/custom-agents) for your specific workflows
+- [Build a custom agent](/docs/agents/custom-agents) — step-by-step guide with code examples
+- [API Overview](/docs/api/overview) — full REST API documentation
+- [Webhooks](/docs/api/webhooks) — webhook event reference and payload format
