@@ -11,19 +11,6 @@ interface Props {
   status?: string;
 }
 
-/**
- * SLA status badge for conversation list and detail sidebar.
- *
- * Shows the most relevant SLA deadline:
- * - If first response hasn't happened yet → show first response countdown
- * - If first response happened but not resolved → show resolution countdown
- * - If breached → show red "SLA Breached"
- *
- * Color coding:
- * - Green: > 25% time remaining
- * - Yellow: < 25% time remaining
- * - Red: breached (past deadline)
- */
 export function SlaBadge({
   firstResponseDueAt,
   resolutionDueAt,
@@ -33,16 +20,13 @@ export function SlaBadge({
 }: Props) {
   const [, setTick] = useState(0);
 
-  // Re-render every 30 seconds to keep countdown fresh
   useEffect(() => {
     const interval = setInterval(() => setTick((t) => t + 1), 30000);
     return () => clearInterval(interval);
   }, []);
 
-  // Conversation is closed — no SLA tracking needed
   if (status === "CLOSED") return null;
 
-  // Already breached
   if (slaBreachedAt) {
     return (
       <Badge variant="destructive" className="text-xs">
@@ -51,7 +35,6 @@ export function SlaBadge({
     );
   }
 
-  // Determine which deadline to show
   const now = Date.now();
   let dueAt: Date | null = null;
   let label = "";
@@ -78,12 +61,7 @@ export function SlaBadge({
     );
   }
 
-  // Calculate how urgent (what percentage of time has elapsed)
-  // We estimate start time as "creation time" but we don't have it here,
-  // so we use a heuristic: if < 25% remaining of the deadline, it's urgent
-  const totalEstimate = remaining < 15 * 60 * 1000 ? remaining : remaining; // simplified
-  const isWarning = remaining < 15 * 60 * 1000; // less than 15 min
-
+  const isWarning = remaining < 15 * 60 * 1000;
   const timeStr = formatDuration(remaining);
 
   if (isWarning) {
