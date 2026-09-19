@@ -37,6 +37,7 @@ export default async function Dashboard({ children }: ProtectedLayoutProps) {
         id: t.id,
         name: t.name,
         slug: t.slug,
+        plan: t.plan,
         role: t.role,
       }))
     : [];

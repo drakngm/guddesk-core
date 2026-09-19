@@ -37,8 +37,11 @@ export default async function InboxPage({
       />
       <InboxLayout
         workspaceId={workspace.id}
+        currentUserId={user.id!}
+        currentUserName={user.name ?? "Agent"}
         members={members.map((m) => ({
           id: m.id,
+          userId: m.userId,
           user: { name: m.user.name, image: m.user.image },
         }))}
         cannedResponses={cannedResponses}

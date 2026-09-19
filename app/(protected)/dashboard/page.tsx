@@ -48,7 +48,8 @@ export default async function DashboardPage() {
                         {workspace.name}
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {workspace.role}
+                        {workspace.role} &middot;{" "}
+                        {workspace.plan === "PRO" ? "Pro" : "Free"}
                       </div>
                     </div>
                     <Icons.arrowRight className="size-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />

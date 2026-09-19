@@ -5,6 +5,7 @@ import { getWorkspaceBySlug, requireWorkspaceRole } from "@/lib/workspace";
 import { prisma } from "@/lib/db";
 import { env } from "@/env.mjs";
 import { DashboardHeader } from "@/components/dashboard/header";
+import { IdentityVerification } from "@/components/settings/identity-verification";
 import { WidgetConfigurator } from "@/components/widget-preview/widget-configurator";
 
 export default async function WidgetSettingsPage({
@@ -39,25 +40,46 @@ export default async function WidgetSettingsPage({
         <div className="rounded-lg border p-6">
           <h3 className="mb-2 text-sm font-medium">Installation</h3>
           <p className="mb-4 text-sm text-muted-foreground">
-            Add this snippet to your website, just before the closing{" "}
+            Add this two-line snippet to your website, just before the closing{" "}
             <code className="rounded bg-muted px-1 py-0.5 text-xs">
               &lt;/body&gt;
             </code>{" "}
-            tag.
+            tag. Hosted workspaces should load the widget from{" "}
+            <code className="rounded bg-muted px-1 py-0.5 text-xs">
+              cdn.guddesk.com
+            </code>
+            . Use a{" "}
+            <code className="rounded bg-muted px-1 py-0.5 text-xs">
+              gd_pub_
+            </code>{" "}
+            app ID only — never put server API keys in the page.
           </p>
           <pre className="overflow-x-auto rounded-lg bg-muted p-4 text-sm">
-            <code>{`<script>
-  window.GudDeskSettings = {
-    appId: "gd_pub_${workspace.appId}"
-  };
-</script>
-<script src="${appUrl}/widget.js" async></script>`}</code>
+            <code>{`<script>window.GudDeskSettings={appId:"gd_pub_${workspace.appId}"}</script>
+<script src="https://cdn.guddesk.com/widget.js" async></script>`}</code>
           </pre>
+          {appUrl && !appUrl.includes("guddesk.com") ? (
+            <p className="mt-3 text-sm text-muted-foreground">
+              This instance is not guddesk.com. For local or self-hosted installs,
+              keep the same app ID and load{" "}
+              <code className="rounded bg-muted px-1 py-0.5 text-xs">
+                {appUrl}/widget.js
+              </code>{" "}
+              instead of the CDN.
+            </p>
+          ) : null}
         </div>
+
+        {/* Identity verification */}
+        <IdentityVerification
+          workspaceId={workspace.id}
+          initialSecret={widgetSettings?.identitySecret ?? null}
+        />
 
         {/* Widget configurator */}
         <WidgetConfigurator
           workspaceId={workspace.id}
+          plan={workspace.plan}
           settings={{
             primaryColor: widgetSettings?.primaryColor ?? "#3ECF8E",
             position: (widgetSettings?.position as "bottom-right" | "bottom-left") ?? "bottom-right",
