@@ -1,7 +1,17 @@
 <p align="center">
-  <a href="https://guddesk.com">
-    <img src="public/_static/og.jpg" alt="GudDesk" />
+  <a href="https://www.guddesk.com">
+    <img src="docs/assets/guddesk-hero.svg" alt="GudDesk homepage" width="800" />
   </a>
+</p>
+
+<p align="center">
+  <a href="https://www.guddesk.com">
+    <img src="docs/assets/guddesk-tour.svg" alt="GudDesk product tour" width="800" />
+  </a>
+</p>
+
+<p align="center">
+  <a href="https://www.guddesk.com">Watch the full reel on guddesk.com</a>
 </p>
 
 <p align="center">
