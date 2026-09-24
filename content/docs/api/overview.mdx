@@ -49,8 +49,8 @@ Each API key has a permission level that controls what it can do:
 
 ### Workspace Scoping
 
-- **Single workspace key** — The `workspaceId` is fixed; no need to pass it in requests.
-- **All workspaces key** — You must include `workspaceId` as a query parameter or in the request body for workspace-scoped endpoints.
+- **Single workspace key** 鈥?The `workspaceId` is fixed; no need to pass it in requests.
+- **All workspaces key** 鈥?You must include `workspaceId` as a query parameter or in the request body for workspace-scoped endpoints.
 
 ## Rate Limits
 
@@ -375,7 +375,7 @@ The response follows the standard envelope format:
 }
 ```
 
-> **Note:** Webhook registration requires a **Full Access** API key. If your agent only needs to read/write articles and reply to conversations, a **Read & Write** key is sufficient — but you'll need to register the webhook manually in the dashboard.
+> **Note:** Webhook registration requires a **Full Access** API key. If your agent only needs to read/write articles and reply to conversations, a **Read & Write** key is sufficient 鈥?but you'll need to register the webhook manually in the dashboard.
 
 **Remove a webhook:**
 
@@ -398,7 +398,7 @@ Send MCP requests to:
 POST https://guddesk.com/api/mcp
 ```
 
-Authenticate with the same API key as the REST API:
+When self-hosting, use `POST /api/mcp` on your own origin. Authenticate with the same API key as the REST API:
 
 ```
 Authorization: Bearer gd_abc123...
@@ -406,14 +406,20 @@ Authorization: Bearer gd_abc123...
 
 ### Claude Desktop (Stdio)
 
-Add GudDesk to your Claude Desktop config (`claude_desktop_config.json`):
+The stdio entry point lives in this repository at [`bin/guddesk-mcp.ts`](/bin/guddesk-mcp.ts); a `guddesk-mcp` package is not published to npm yet. Run it from a checkout:
+
+```
+GUDDESK_API_KEY=gd_abc123... npx tsx bin/guddesk-mcp.ts
+```
+
+Then point Claude Desktop (`claude_desktop_config.json`) at that file:
 
 ```json
 {
   "mcpServers": {
     "guddesk": {
       "command": "npx",
-      "args": ["guddesk-mcp"],
+      "args": ["tsx", "/path/to/guddesk/bin/guddesk-mcp.ts"],
       "env": {
         "GUDDESK_API_KEY": "gd_abc123..."
       }
@@ -422,9 +428,30 @@ Add GudDesk to your Claude Desktop config (`claude_desktop_config.json`):
 }
 ```
 
+### Example: calling a tool
+
+MCP speaks JSON-RPC 2.0. Over HTTP, call `list_conversations` with your API key:
+
+```bash
+curl https://guddesk.com/api/mcp \
+  -H "Authorization: Bearer gd_abc123..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "jsonrpc": "2.0",
+    "id": 1,
+    "method": "tools/call",
+    "params": {
+      "name": "list_conversations",
+      "arguments": { "status": "OPEN" }
+    }
+  }'
+```
+
+Send `"method": "tools/list"` (no params) to discover every tool.
+
 ### Available Tools
 
-The MCP server exposes these tools:
+The MCP server exposes these 26 tools:
 
 | Tool | Description |
 |---|---|
@@ -439,6 +466,14 @@ The MCP server exposes these tools:
 | `list_customers` | List customers |
 | `get_customer` | Get customer details with recent conversations |
 | `update_customer` | Update customer name, email, avatar, or metadata |
+| `list_customer_events` | List timeline events for a customer |
+| `list_companies` | List companies in the workspace |
+| `get_company` | Get a company's details including its customers |
+| `create_company` | Create a new company in the workspace |
+| `update_company` | Update a company's name, domain, website, logo, industry, or metadata |
+| `list_segments` | List customer segments in the workspace |
+| `get_segment` | Get a customer segment's details and conditions |
+| `create_segment` | Create a customer segment with filter conditions (conditions are AND-ed) |
 | `list_articles` | List knowledge base articles |
 | `get_article` | Get article content |
 | `search_articles` | Search articles by keyword |
@@ -449,5 +484,5 @@ The MCP server exposes these tools:
 
 ## Next Steps
 
-- [Webhooks](/docs/api/webhooks) — Receive real-time event notifications
-- [gud-agent](https://github.com/gudlab/gud-agent) — Open-source AI support agent
+- [Webhooks](/docs/api/webhooks) 鈥?Receive real-time event notifications
+- [gud-agent](https://github.com/gudlab/gud-agent) 鈥?Open-source AI support agent
